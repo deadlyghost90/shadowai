@@ -46,6 +46,26 @@ function fail(s) {
   console.log(bad(s))
 }
 
+/**
+ * The runtime hostname is `{owner}-{name}.hf.space`, but the API wants
+ * `owner/name`. Owners may contain dashes too, so splitting on the first one
+ * is a guess — HF hands us the exact answer in a `link:` header on the space
+ * root, and we only fall back to guessing if that is missing.
+ */
+async function resolveSlug(base) {
+  try {
+    const res = await fetch(`${base}/`, { method: 'GET', redirect: 'manual' })
+    const link = res.headers.get('link') || ''
+    const m = /https:\/\/huggingface\.co\/spaces\/([^>\s]+)/.exec(link)
+    if (m) return m[1]
+  } catch {
+    /* fall through */
+  }
+  const host = (() => { try { return new URL(base).hostname } catch { return '' } })()
+  const m = /^([^-]+)-(.+)\.hf\.space$/.exec(host)
+  return m ? `${m[1]}/${m[2]}` : ''
+}
+
 async function main() {
   console.log('\n  ShadowAI — model space doctor\n')
 
@@ -58,18 +78,19 @@ async function main() {
   console.log(`  ${dim('token')}  ${TOKEN ? `${TOKEN.slice(0, 9)}…${TOKEN.slice(-4)} (${TOKEN.length} chars)` : '— not set —'}\n`)
 
   /* 1. the space exists and is running ------------------------------------- */
-  const slug = /https:\/\/([^/]+)\.hf\.space/.exec(base)
+  const slug = await resolveSlug(base)
   if (slug) {
-    const meta = await fetch(`https://huggingface.co/api/spaces/${slug[1]}`, { method: 'GET' }).catch(() => null)
+    const meta = await fetch(`https://huggingface.co/api/spaces/${slug}`, { method: 'GET' }).catch(() => null)
     if (meta?.ok) {
       const j = await meta.json()
       const running = j?.runtime?.stage === 'RUNNING'
+      console.log(`  ${dim('path ')}  ${slug}`)
       if (j?.private) fail('The space is PRIVATE. Anyone without access gets a 404. Make it public, or send a token that has been granted access.')
       else console.log(ok(`space is public · ${j?.sdk} · ${j?.runtime?.hardware?.current ?? 'cpu'}`))
       if (running) console.log(ok(`runtime is ${j.runtime.stage} (domain ${j.runtime.domains?.[0]?.stage ?? '?'})`))
       else console.log(warn(`runtime stage is "${j?.runtime?.stage}" — a cold Space wakes on first request, give it a minute`))
     } else {
-      console.log(warn('could not read space metadata from huggingface.co (offline, or renamed)'))
+      console.log(warn(`could not read metadata for ${slug} (offline, or the space was renamed)`))
     }
   }
 

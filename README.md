@@ -57,6 +57,31 @@ Shipped implementations:
 **Adding another backend** is one file that satisfies `AIProvider`, plus one line in
 `createProvider()` (`src/lib/ai/index.ts`). No component, hook, or store changes.
 
+### Troubleshooting the Space
+
+```bash
+node tools/check-space.mjs
+```
+
+The Space validates the `Authorization` header itself, so the token has to match the value
+configured inside the Space. A wrong token fails in two distinct ways, and the doctor tells
+them apart:
+
+| Result | Meaning |
+| --- | --- |
+| `401 Missing authorization` | no token was sent — add it in Settings → Model |
+| `403 Invalid token` | the token does not match the Space's own configured value |
+| `404` on every path | the Space is private or stopped — make it public and check the runtime stage |
+
+Verify a token against Hugging Face directly:
+
+```bash
+curl -s -H "Authorization: Bearer hf_YOUR_TOKEN" https://huggingface.co/api/whoami-v2
+```
+
+A valid token returns your account; an invalid one returns
+`{"error":"Invalid username or password."}`. If that fails, no Space will accept it.
+
 ### Shadow v1.1 (the Space)
 
 Configured in `.env`:
@@ -247,8 +272,20 @@ npm run build     # production build → dist/
 npm run preview   # serve the production build
 npm run server    # optional backend proxy on :8787
 
+node tools/check-space.mjs     # diagnose the live Space end to end
 node tools/mock-model.mjs      # local stand-in model, both wire formats
-node tools/probe-space.mjs     # inspect the live Space's event stream
+```
+
+`check-space.mjs` is the first thing to run when the model misbehaves. It resolves the space
+from its hostname, confirms it is public and running, calls `/health`, then makes a real
+`/api/chat` call and reports which link in the chain is broken:
+
+```
+  path   deadlyghost5090/fs-intelligence-whatsapp
+✓ space is public · docker · cpu-basic
+✓ runtime is RUNNING (domain READY)
+✓ model loaded — Model loaded successfully
+✗ 403 "Invalid token" — the space rejected this token.
 ```
 
 ## Notes
