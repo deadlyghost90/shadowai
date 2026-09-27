@@ -1,0 +1,7 @@
+{
+  "baseUrl": "https://your-endpoint/v1",
+  "apiKey": "sk-...",
+  "model": "your-model-id",
+  "authHeader": "Authorization",
+  "authFormat": "Bearer {key}"
+}
