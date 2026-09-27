@@ -211,6 +211,34 @@
   background: var(--surface-3);
 }
 
+.sidebar__archived-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r-md);
+  font-size: 12.5px;
+  color: var(--muted);
+  border: 1px solid transparent;
+  transition: color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+
+.sidebar__archived-toggle:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.sidebar__archived-toggle.is-active {
+  color: var(--accent);
+  background: var(--surface);
+  border-color: var(--accent-line);
+}
+
+.app[data-collapsed='true'] .sidebar__archived-toggle span {
+  display: none;
+}
+
 .sidebar__list {
   flex: 1;
   min-height: 0;
