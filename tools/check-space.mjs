@@ -133,17 +133,44 @@ async function main() {
     try {
       detail = JSON.parse(body)?.detail ?? body
     } catch { /* plain text */ }
+
+    // Ask Hugging Face whether the token is real, so we can tell "you sent the
+    // wrong token" apart from "the Space is checking against its own secret".
+    let hfValid = null
+    if (TOKEN) {
+      try {
+        const who = await fetch('https://huggingface.co/api/whoami-v2', {
+          headers: { Authorization: `Bearer ${TOKEN}` },
+        })
+        hfValid = who.ok
+      } catch {
+        hfValid = null
+      }
+    }
+
     if (res.status === 401) {
-      fail(`401 "${detail}" — the space requires a token and none was accepted. Set VITE_SHADOW_SPACE_TOKEN.`)
+      fail(`401 "${detail}" — the space needs a token and none arrived. Set VITE_SHADOW_SPACE_TOKEN.`)
     } else if (res.status === 403) {
-      fail(`403 "${detail}" — the space rejected the token. It must match the value configured in the Space's own environment/settings.`)
+      if (hfValid) {
+        fail('403 "Invalid token" — but Hugging Face says this token IS valid.')
+        console.log('    The Space is not checking Hugging Face; it compares the header against a')
+        console.log('    secret stored in its own settings. That value is neither token you have sent.')
+        console.log('')
+        console.log('    Fix, in the Space:  Settings → Variables and Secrets')
+        console.log('      set the secret it checks (e.g. API_TOKEN) to the value you want to use')
+        console.log('    Then set the same value here in .env:')
+        console.log('      VITE_SHADOW_SPACE_TOKEN=<that value>')
+      } else {
+        fail(`403 "${detail}" — the space rejected this token. It is not a valid Hugging Face token either.`)
+        console.log('    Create one at https://huggingface.co/settings/tokens (Fine-grained, Read role).')
+      }
     } else {
       fail(`POST /api/chat → ${res.status} ${String(detail).slice(0, 120)}`)
     }
-    console.log(dim('\n  Hugging Face also validates the token itself:'))
-    const who = await fetch('https://huggingface.co/api/whoami-v2', { headers: { Authorization: `Bearer ${TOKEN}` } })
-    console.log(dim(`  GET /api/whoami-v2 → ${who.status} ${who.status === 200 ? '(token is a valid HF token)' : '(HF does not recognise this token)'}`))
-    console.log(`\n  \x1b[31m${failures} problem(s) above.\x1b[0m Fix them and run this again.\n`)
+    console.log(
+      dim(`\n  HF token check: ${hfValid === null ? 'could not reach huggingface.co' : hfValid ? 'valid' : 'invalid'} (GET /api/whoami-v2)\n`),
+    )
+    console.log(`  \x1b[31m${failures} problem(s) above.\x1b[0m Fix and run this again.\n`)
     process.exit(1)
   }
 

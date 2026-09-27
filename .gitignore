@@ -13,3 +13,4 @@ dist-ssr
 *.log
 tsconfig.tsbuildinfo
 server/shadowai.config.json
+service-account.json

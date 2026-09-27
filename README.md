@@ -63,24 +63,33 @@ Shipped implementations:
 node tools/check-space.mjs
 ```
 
-The Space validates the `Authorization` header itself, so the token has to match the value
-configured inside the Space. A wrong token fails in two distinct ways, and the doctor tells
-them apart:
+The Space validates the `Authorization` header **itself**. It does not ask Hugging Face — it
+compares the header against a secret stored in its own settings. That is why a perfectly valid
+Hugging Face token can still be refused, and the doctor checks both so you can tell the cases
+apart:
 
 | Result | Meaning |
 | --- | --- |
-| `401 Missing authorization` | no token was sent — add it in Settings → Model |
-| `403 Invalid token` | the token does not match the Space's own configured value |
-| `404` on every path | the Space is private or stopped — make it public and check the runtime stage |
+| `404` on every path | the Space is private or stopped — make it public |
+| `401 Missing authorization` | no token arrived — set `VITE_SHADOW_SPACE_TOKEN` |
+| `403 Invalid token` **and** HF says the token is valid | the Space is checking against its own secret, which is a different value |
+| `403 Invalid token` **and** HF also rejects it | the token is not a real Hugging Face token |
 
-Verify a token against Hugging Face directly:
+In the third case the fix is on the Space, not here:
+
+1. Space page → **Settings → Variables and Secrets**
+2. set the secret it checks (commonly `API_TOKEN`, `HF_TOKEN`, or `SHADOW_TOKEN`) to the value
+   you want to use
+3. put the same value in `.env` as `VITE_SHADOW_SPACE_TOKEN`
+
+Verify any token against Hugging Face on its own:
 
 ```bash
 curl -s -H "Authorization: Bearer hf_YOUR_TOKEN" https://huggingface.co/api/whoami-v2
 ```
 
 A valid token returns your account; an invalid one returns
-`{"error":"Invalid username or password."}`. If that fails, no Space will accept it.
+`{"error":"Invalid username or password."}`.
 
 ### Shadow v1.1 (the Space)
 
@@ -142,13 +151,30 @@ Conversations and the onboarding profile are stored in **Realtime Database**.
 offline; writes to the cloud are debounced and fire-and-forget. On first load the two are
 merged, and anything mid-stream is never clobbered by a snapshot.
 
-**Deploy `database.rules.json` before going live.** The Firebase web config in
-`src/lib/firebase.ts` is an identifier, not a secret — anyone can read it. The rules are the
-actual protection: they scope every read and write to the signed-in owner.
+**Publish `database.rules.json` before going live.** The Firebase web config in
+`src/lib/firebase.ts` is an identifier, not an admin credential — anyone can read it, and it
+*cannot* change security rules. Publishing rules needs a **service account**: a robot login
+made of an email plus a private key, used by a script instead of a person clicking through a
+browser.
+
+One-time setup:
+
+1. Firebase console → your project → ⚙ **Project settings → Service accounts**
+2. **Generate new private key** → a JSON file downloads
+3. rename it `service-account.json` and drop it in the project root (already gitignored)
+
+Then:
 
 ```bash
-firebase deploy --only database
+node tools/deploy-rules.mjs
 ```
+
+It shows the rules, asks for confirmation, publishes them, and reads them back to verify.
+Equivalent to `firebase deploy --only database`, but with no global CLI to install.
+
+Until that runs, your Realtime Database is open — anyone who knows the URL can read every
+conversation. The rules already in the repo scope every read and write to the signed-in
+owner.
 
 ### Onboarding
 
@@ -273,6 +299,7 @@ npm run preview   # serve the production build
 npm run server    # optional backend proxy on :8787
 
 node tools/check-space.mjs     # diagnose the live Space end to end
+node tools/deploy-rules.mjs    # publish database.rules.json (needs a service account)
 node tools/mock-model.mjs      # local stand-in model, both wire formats
 ```
 
