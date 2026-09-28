@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="ShadowAI">
+  <defs>
+    <linearGradient id="r2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4ADE80"/>
+      <stop offset="100%" stop-color="#15803D"/>
+    </linearGradient>
+    <linearGradient id="s2" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0%" stop-color="#86EFAC"/>
+      <stop offset="45%" stop-color="#22C55E"/>
+      <stop offset="100%" stop-color="#064E3B"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0B0F0D"/>
+  <rect x="8" y="8" width="496" height="496" rx="106" fill="none" stroke="url(#r2)" stroke-width="12"/>
+  <path
+    d="M 350 150 C 300 116 216 124 174 166 C 138 202 140 252 180 283 C 210 307 252 319 298 335 C 340 349 368 375 366 411 C 363 456 312 486 259 484 C 211 482 170 464 141 435"
+    fill="none"
+    stroke="url(#s2)"
+    stroke-width="66"
+    stroke-linecap="butt"
+  />
+  <path
+    d="M 210 272 C 215 291 226 301 245 306 C 226 311 215 321 210 340 C 205 321 194 311 175 306 C 194 301 205 291 210 272 Z"
+    fill="#ECFDF5"/>
+</svg>

@@ -1,16 +1,1 @@
-node_modules
-dist
-dist-ssr
-.env
-.env.local
-.env.*.local
-*.local
-.DS_Store
-.vscode/*
-!.vscode/extensions.json
-.idea
-.shots
-*.log
-tsconfig.tsbuildinfo
-server/shadowai.config.json
-service-account.json
+(empty)

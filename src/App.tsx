@@ -115,6 +115,7 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(() => isMobileWidth())
   const [scrolled, setScrolled] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
+  const [showArchived, setShowArchived] = useState(false)
 
   /* ---------------------------------------------------------- account */
   const [user, setUser] = useState<User | null>(null)
@@ -388,6 +389,15 @@ export default function App() {
       toast('Conversation archived')
     },
     [activeId, conversations, newChat, toast, updateConversation],
+  )
+
+  const unarchiveConversation = useCallback(
+    (id: string) => {
+      updateConversation(id, (c) => ({ ...c, archived: false, updatedAt: Date.now() }))
+      setActiveId(id)
+      toast('Conversation restored')
+    },
+    [toast, updateConversation],
   )
 
   /* ---------------------------------------------------------- streaming */
@@ -1021,6 +1031,9 @@ export default function App() {
         onDelete={deleteConversation}
         onRename={renameConversation}
         onArchive={archiveConversation}
+        onUnarchive={unarchiveConversation}
+        showArchived={showArchived}
+        onToggleArchived={() => setShowArchived((v) => !v)}
         query={search}
         onQuery={setSearch}
         onOpenSettings={openSettings}

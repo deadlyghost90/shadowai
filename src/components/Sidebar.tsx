@@ -29,6 +29,9 @@ export interface SidebarProps {
   onDelete: (id: string) => void
   onRename: (id: string, title: string) => void
   onArchive: (id: string) => void
+  onUnarchive: (id: string) => void
+  showArchived: boolean
+  onToggleArchived: () => void
   query: string
   onQuery: (q: string) => void
   onOpenSettings: (tab?: string) => void
@@ -54,6 +57,9 @@ export function Sidebar(props: SidebarProps) {
     onDelete,
     onRename,
     onArchive,
+    onUnarchive,
+    showArchived,
+    onToggleArchived,
     query,
     onQuery,
     onOpenSettings,
@@ -76,13 +82,15 @@ export function Sidebar(props: SidebarProps) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const live = conversations.filter((c) => !c.archived)
+    const live = conversations.filter((c) => (showArchived ? c.archived : !c.archived))
     if (!q) return live
     return live.filter((c) => {
       if (c.title.toLowerCase().includes(q)) return true
       return c.messages.some((m) => m.content.toLowerCase().includes(q))
     })
-  }, [conversations, query])
+  }, [conversations, query, showArchived])
+
+  const archivedCount = useMemo(() => conversations.filter((c) => c.archived).length, [conversations])
 
   const groups = useMemo(() => {
     const map = new Map<string, Conversation[]>()
@@ -162,6 +170,19 @@ export function Sidebar(props: SidebarProps) {
             ) : null}
           </div>
 
+          {archivedCount > 0 || showArchived ? (
+            <button
+              className={cx('sidebar__archived-toggle', showArchived && 'is-active')}
+              onClick={onToggleArchived}
+              type="button"
+              title={showArchived ? 'Back to active conversations' : 'View archived conversations'}
+            >
+              <Icon name="archive" size={13} />
+              <span>{showArchived ? 'Active chats' : 'Archived'}</span>
+              <span style={{ opacity: 0.6 }}>{showArchived ? undefined : archivedCount}</span>
+            </button>
+          ) : null}
+
           <div className="sidebar__list">
             {groups.length === 0 ? (
               <p className="sidebar__empty">
@@ -170,6 +191,12 @@ export function Sidebar(props: SidebarProps) {
                     No conversations match
                     <br />
                     <span style={{ color: 'var(--muted)' }}>“{query}”</span>
+                  </>
+                ) : showArchived ? (
+                  <>
+                    Nothing archived.
+                    <br />
+                    <span style={{ color: 'var(--muted)' }}>Archive a chat to stash it here.</span>
                   </>
                 ) : (
                   <>
@@ -313,7 +340,9 @@ export function Sidebar(props: SidebarProps) {
             <button
               className="menu-item"
               onClick={() => {
-                onArchive(menuFor)
+                const c = conversations.find((x) => x.id === menuFor)
+                if (c?.archived) onUnarchive(menuFor)
+                else onArchive(menuFor)
                 setMenuFor(null)
                 menu.close()
               }}
@@ -321,7 +350,9 @@ export function Sidebar(props: SidebarProps) {
             >
               <Icon name="archive" size={14} style={{ color: 'var(--muted)' }} />
               <span className="menu-item__body">
-                <span className="menu-item__title">Archive</span>
+                <span className="menu-item__title">
+                  {conversations.find((x) => x.id === menuFor)?.archived ? 'Restore' : 'Archive'}
+                </span>
               </span>
             </button>
             <div className="menu-sep" />

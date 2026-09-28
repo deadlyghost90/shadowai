@@ -172,7 +172,7 @@ export function createOpenAICompatibleProvider(cfg: ProviderConfig): AIProvider 
       let buffer = ''
       let full = ''
 
-      const drain = (block: string, final: boolean) => {
+      const drain = (block: string) => {
         for (const rawLine of block.split('\n')) {
           const line = rawLine.trim()
           if (!line) continue
@@ -195,7 +195,6 @@ export function createOpenAICompatibleProvider(cfg: ProviderConfig): AIProvider 
             /* partial frame — ignore, the next line completes it */
           }
         }
-        if (final && buffer.trim().length === 0) return
       }
 
       try {
@@ -207,11 +206,11 @@ export function createOpenAICompatibleProvider(cfg: ProviderConfig): AIProvider 
           if (idx !== -1) {
             const block = buffer.slice(0, idx)
             buffer = buffer.slice(idx + 2)
-            drain(block, false)
+            drain(block)
           }
         }
         buffer += decoder.decode()
-        if (buffer.trim()) drain(buffer, true)
+        if (buffer.trim()) drain(buffer)
       } catch (e) {
         if ((e as Error)?.name === 'AbortError') throw e
         if (e instanceof ProviderError) throw e
