@@ -12,7 +12,7 @@ export type Transport = 'direct' | 'server' | 'space'
  *
  * The URL is public information and lives here. The token is a credential, so
  * it comes from `VITE_SHADOW_SPACE_TOKEN` (see `.env`) and can be rotated at
- * any time from Settings → Model without rebuilding.
+ * any time from Settings → Connection without rebuilding.
  */
 export const SHADOW_SPACE_URL =
   (import.meta.env?.VITE_SHADOW_SPACE_URL as string) ||

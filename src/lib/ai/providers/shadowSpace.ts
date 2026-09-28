@@ -88,8 +88,8 @@ function classify(status: number, body?: string): ProviderError {
         : 'The model space rejected this token.',
       'auth',
       missing
-        ? 'Add the space token in Settings → Model. Public spaces can still require one.'
-        : 'The token does not match what the space expects. Check it in Settings → Model.',
+        ? 'Add the Space token in Settings → Connection. Public spaces can still require one.'
+        : 'The token does not match what the Space expects. Check it in Settings → Connection.',
     )
   }
   if (status === 404) {
@@ -151,7 +151,7 @@ export function createShadowSpaceProvider(cfg: ProviderConfig): AIProvider {
     async chat(req: ProviderRequest): Promise<void> {
       if (!base) {
         throw new ProviderError('No model space URL configured yet.', 'connection',
-          'Open Settings → Model to connect ShadowAI.')
+          'Open Settings → Connection to connect ShadowAI.')
       }
 
       const lastUser = [...req.messages].reverse().find((m) => m.role === 'user')

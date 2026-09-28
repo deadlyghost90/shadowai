@@ -1,21 +1,20 @@
 import { useMemo, useState } from 'react'
-import type { AppSettings, ProviderConfig, Transport } from '../lib/ai/config'
+import type { AppSettings, ProviderConfig } from '../lib/ai/config'
 import type { ProviderHealth } from '../lib/ai/types'
 import { Icon, type IconName } from './Icon'
 import { Mark } from './Mark'
 import { Modal } from './Overlay'
-import { cx, formatBytes, uid } from '../lib/utils'
+import { cx, formatBytes } from '../lib/utils'
 
 /**
  * Settings — deliberately secondary.
  *
- * Six small panels, no dashboard. The Model panel is the important one: it is
- * where the user points ShadowAI at their own AI model, whatever that is.
+ * Six small panels, no dashboard. The Connection panel keeps the app focused on one thing: getting your Shadow Space ready for work.
  */
 
 export type SettingsTab =
   | 'appearance'
-  | 'model'
+  | 'connection'
   | 'account'
   | 'data'
   | 'shortcuts'
@@ -23,7 +22,7 @@ export type SettingsTab =
 
 const TABS: { id: SettingsTab; label: string; icon: IconName }[] = [
   { id: 'appearance', label: 'Appearance', icon: 'sparkle' },
-  { id: 'model', label: 'Model', icon: 'brain' },
+  { id: 'connection', label: 'Connection', icon: 'sparkle' },
   { id: 'account', label: 'Account', icon: 'user' },
   { id: 'data', label: 'Data', icon: 'database' },
   { id: 'shortcuts', label: 'Shortcuts', icon: 'terminal' },
@@ -37,43 +36,6 @@ const ACCENTS = [
   { value: '#a78bfa', name: 'Iris' },
 ]
 
-const PRESETS: { label: string; baseUrl: string; note: string; authHeader: string; authFormat: string }[] = [
-  {
-    label: 'OpenAI-compatible',
-    baseUrl: 'https://api.openai.com/v1',
-    note: 'Any gateway that speaks /chat/completions',
-    authHeader: 'Authorization',
-    authFormat: 'Bearer {key}',
-  },
-  {
-    label: 'Hugging Face',
-    baseUrl: 'https://router.huggingface.co/v1',
-    note: 'Inference router, OpenAI-compatible',
-    authHeader: 'Authorization',
-    authFormat: 'Bearer {key}',
-  },
-  {
-    label: 'Ollama (local)',
-    baseUrl: 'http://localhost:11434/v1',
-    note: 'Local runtime — usually no key needed',
-    authHeader: 'Authorization',
-    authFormat: 'Bearer {key}',
-  },
-  {
-    label: 'LM Studio (local)',
-    baseUrl: 'http://localhost:1234/v1',
-    note: 'Local OpenAI-compatible server',
-    authHeader: 'Authorization',
-    authFormat: 'Bearer {key}',
-  },
-  {
-    label: 'vLLM (self-hosted)',
-    baseUrl: 'http://localhost:8000/v1',
-    note: 'Your own serving stack',
-    authHeader: 'Authorization',
-    authFormat: 'Bearer {key}',
-  },
-]
 
 function Row({
   title,
@@ -152,26 +114,6 @@ export function SettingsDialog({
   const setAccount = (patch: Partial<AppSettings['account']>) =>
     onChange({ ...settings, account: { ...settings.account, ...patch } })
 
-  const models = p.models
-  const addModel = () =>
-    setProvider({
-      models: [...models, { id: '', label: '', source: transportSource(p.transport) }],
-    })
-  const patchModel = (i: number, patch: Partial<AppSettings['provider']['models'][number]>) => {
-    const next = models.map((m, idx) => (idx === i ? { ...m, ...patch } : m))
-    let selected = p.selectedModel
-    if (patch.id && models[i].id === p.selectedModel) selected = patch.id
-    setProvider({ models: next, selectedModel: selected })
-  }
-  const removeModel = (i: number) => {
-    const next = models.filter((_, idx) => idx !== i)
-    setProvider({
-      models: next,
-      selectedModel: p.selectedModel === models[i].id ? next[0]?.id ?? '' : p.selectedModel,
-    })
-  }
-
-  const keyless = p.transport === 'server' || !p.apiKey
   const activeId = tab
 
   const shortcuts = useMemo(
@@ -284,286 +226,66 @@ export function SettingsDialog({
             </>
           ) : null}
 
-          {/* --------------------------------------------------------- model */}
-          {tab === 'model' ? (
+          {/* ----------------------------------------------------- connection */}
+          {tab === 'connection' ? (
             <>
               <div className="settings-group">
-                <h3 className="settings-group__title">Your AI model</h3>
+                <h3 className="settings-group__title">Connect your Space</h3>
                 <p className="settings-group__desc">
-                  ShadowAI ships with no model of its own. Connect any endpoint that speaks a
-                  common chat-completions format — a hosted gateway, a local runtime, or a server
-                  you control. Your key stays in this browser unless you choose the backend transport.
+                  ShadowAI connects directly to one Hugging Face Space. Paste the Space URL and the
+                  token it expects, then check the connection.
                 </p>
-
                 <div className="field">
-                  <span className="field__label">Model source</span>
-                  <div className="field__row" style={{ flexWrap: 'wrap' }}>
+                  <label className="field__label" htmlFor="cfg-space-url">Space URL</label>
+                  <input
+                    id="cfg-space-url"
+                    className="input"
+                    value={p.baseUrl}
+                    placeholder="https://your-space.hf.space"
+                    spellCheck={false}
+                    onChange={(e) => setProvider({ transport: 'space', baseUrl: e.target.value })}
+                  />
+                  <span className="field__hint">
+                    ShadowAI calls <code>/health</code> and <code>/api/chat</code> on this Space.
+                  </span>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="cfg-space-key">Space token</label>
+                  <div className="field__row">
+                    <input
+                      id="cfg-space-key"
+                      className="input"
+                      type={showKey ? 'text' : 'password'}
+                      value={p.apiKey}
+                      placeholder="hf_… or your Space secret"
+                      spellCheck={false}
+                      autoComplete="off"
+                      onChange={(e) => setProvider({ transport: 'space', apiKey: e.target.value })}
+                    />
                     <button
-                      className={cx('solid-btn', p.transport === 'space' && 'solid-btn--accent')}
-                      onClick={() => setProvider({ transport: 'space' as Transport })}
+                      className="icon-btn"
+                      onClick={() => setShowKey((v) => !v)}
                       type="button"
+                      aria-label={showKey ? 'Hide token' : 'Show token'}
                     >
-                      <Icon name="sparkle" size={14} />
-                      ShadowAI Space
-                    </button>
-                    <button
-                      className={cx('solid-btn', p.transport === 'direct' && 'solid-btn--accent')}
-                      onClick={() => setProvider({ transport: 'direct' as Transport })}
-                      type="button"
-                    >
-                      Custom endpoint
-                    </button>
-                    <button
-                      className={cx('solid-btn', p.transport === 'server' && 'solid-btn--accent')}
-                      onClick={() => setProvider({ transport: 'server' as Transport })}
-                      type="button"
-                    >
-                      ShadowAI backend
+                      <Icon name={showKey ? 'eyeOff' : 'eye'} size={15} />
                     </button>
                   </div>
                   <span className="field__hint">
-                    {p.transport === 'space'
-                      ? 'Shadow v1.1 running on your Hugging Face Space. It streams newline-delimited JSON with its own stage updates.'
-                      : p.transport === 'server'
-                        ? 'Requests go through the bundled Node backend, which holds the credential. Start it with `npm run server`.'
-                        : 'Requests go straight from this browser to your endpoint. The provider must allow browser (CORS) requests.'}
+                    Sent as <code>Authorization: Bearer …</code>. Stored in this browser only.
                   </span>
                 </div>
-
-                {p.transport === 'space' ? (
-                  <>
-                    <div className="field">
-                      <label className="field__label" htmlFor="cfg-space-url">
-                        Space URL
-                      </label>
-                      <input
-                        id="cfg-space-url"
-                        className="input"
-                        value={p.baseUrl}
-                        placeholder="https://your-space.hf.space"
-                        spellCheck={false}
-                        onChange={(e) => setProvider({ baseUrl: e.target.value })}
-                      />
-                      <span className="field__hint">
-                        ShadowAI calls <code>/health</code> to check the model and <code>/api/chat</code> to
-                        talk to it.
-                      </span>
-                    </div>
-                    <div className="field">
-                      <label className="field__label" htmlFor="cfg-space-key">
-                        Space token
-                      </label>
-                      <div className="field__row">
-                        <input
-                          id="cfg-space-key"
-                          className="input"
-                          type={showKey ? 'text' : 'password'}
-                          value={p.apiKey}
-                          placeholder="hf_…"
-                          spellCheck={false}
-                          autoComplete="off"
-                          onChange={(e) => setProvider({ apiKey: e.target.value })}
-                        />
-                        <button
-                          className="icon-btn"
-                          onClick={() => setShowKey((v) => !v)}
-                          type="button"
-                          aria-label={showKey ? 'Hide token' : 'Show token'}
-                        >
-                          <Icon name={showKey ? 'eyeOff' : 'eye'} size={15} />
-                        </button>
-                      </div>
-                      <span className="field__hint">
-                        Sent as <code>Authorization: Bearer …</code>. Stored in this browser only.
-                      </span>
-                    </div>
-                  </>
-                ) : null}
-
-                {p.transport === 'direct' ? (
-                  <>
-                    <div className="field">
-                      <span className="field__label">Common endpoints</span>
-                      <div className="field__row" style={{ flexWrap: 'wrap' }}>
-                        {PRESETS.map((preset) => (
-                          <button
-                            key={preset.label}
-                            className="ghost-btn"
-                            style={{ height: 30, fontSize: 12.5 }}
-                            title={preset.note}
-                            onClick={() =>
-                              setProvider({
-                                baseUrl: preset.baseUrl,
-                                authHeader: preset.authHeader,
-                                authFormat: preset.authFormat,
-                              })
-                            }
-                            type="button"
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="field">
-                      <label className="field__label" htmlFor="cfg-base">
-                        Base URL
-                      </label>
-                      <input
-                        id="cfg-base"
-                        className="input"
-                        value={p.baseUrl}
-                        placeholder="https://your-endpoint/v1"
-                        spellCheck={false}
-                        onChange={(e) => setProvider({ baseUrl: e.target.value })}
-                      />
-                      <span className="field__hint">
-                        ShadowAI appends <code>/chat/completions</code>. Include the version segment
-                        if your endpoint expects it.
-                      </span>
-                    </div>
-
-                    <div className="field">
-                      <label className="field__label" htmlFor="cfg-key">
-                        API key
-                      </label>
-                      <div className="field__row">
-                        <input
-                          id="cfg-key"
-                          className="input"
-                          type={showKey ? 'text' : 'password'}
-                          value={p.apiKey}
-                          placeholder={keyless ? 'Not required for this endpoint' : 'sk-…'}
-                          spellCheck={false}
-                          autoComplete="off"
-                          onChange={(e) => setProvider({ apiKey: e.target.value })}
-                        />
-                        <button
-                          className="icon-btn"
-                          onClick={() => setShowKey((v) => !v)}
-                          type="button"
-                          aria-label={showKey ? 'Hide key' : 'Show key'}
-                        >
-                          <Icon name={showKey ? 'eyeOff' : 'eye'} size={15} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <details style={{ marginBottom: 16 }}>
-                      <summary
-                        style={{
-                          cursor: 'pointer',
-                          fontSize: 12.5,
-                          color: 'var(--muted)',
-                          padding: '4px 0',
-                        }}
-                      >
-                        Advanced auth
-                      </summary>
-                      <div style={{ paddingTop: 10 }}>
-                        <div className="field">
-                          <label className="field__label" htmlFor="cfg-hdr">
-                            Auth header
-                          </label>
-                          <input
-                            id="cfg-hdr"
-                            className="input"
-                            value={p.authHeader}
-                            placeholder="Authorization"
-                            spellCheck={false}
-                            onChange={(e) => setProvider({ authHeader: e.target.value })}
-                          />
-                        </div>
-                        <div className="field">
-                          <label className="field__label" htmlFor="cfg-fmt">
-                            Value format
-                          </label>
-                          <input
-                            id="cfg-fmt"
-                            className="input"
-                            value={p.authFormat}
-                            placeholder="Bearer {key}"
-                            spellCheck={false}
-                            onChange={(e) => setProvider({ authFormat: e.target.value })}
-                          />
-                          <span className="field__hint">
-                            <code>{'{key}'}</code> is replaced with your key.
-                          </span>
-                        </div>
-                        <div className="field">
-                          <label className="field__label" htmlFor="cfg-headers">
-                            Extra headers (JSON)
-                          </label>
-                          <textarea
-                            id="cfg-headers"
-                            className="textarea textarea--mono"
-                            value={p.headersJson}
-                            spellCheck={false}
-                            onChange={(e) => setProvider({ headersJson: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                    </details>
-                  </>
-                ) : null}
               </div>
-
-              <div className="settings-group">
-                <h3 className="settings-group__title">Models</h3>
-                <p className="settings-group__desc">
-                  Only the models listed here appear in the composer selector.
-                </p>
-                <div className="model-list">
-                  {models.length === 0 ? (
-                    <p style={{ fontSize: 13, color: 'var(--muted-2)', margin: '4px 0 12px' }}>
-                      No models yet — add the model id your endpoint expects.
-                    </p>
-                  ) : null}
-                  {models.map((m, i) => (
-                    <div key={m.id || uid('m') + i} className={cx('model-row', m.id === p.selectedModel && 'is-selected')}>
-                      <input
-                        className="model-row__name"
-                        value={m.id}
-                        placeholder="model-id"
-                        spellCheck={false}
-                        aria-label="Model id"
-                        onChange={(e) => patchModel(i, { id: e.target.value })}
-                      />
-                      <input
-                        className="model-row__label"
-                        value={m.label}
-                        placeholder="Display name"
-                        aria-label="Display name"
-                        onChange={(e) => patchModel(i, { label: e.target.value })}
-                      />
-                      <button
-                        className={cx('solid-btn', m.id === p.selectedModel && 'solid-btn--accent')}
-                        style={{ height: 30, fontSize: 12.5 }}
-                        onClick={() => setProvider({ selectedModel: m.id })}
-                        type="button"
-                      >
-                        {m.id === p.selectedModel ? 'Default' : 'Use'}
-                      </button>
-                      <button
-                        className="icon-btn"
-                        onClick={() => removeModel(i)}
-                        type="button"
-                        aria-label="Remove model"
-                      >
-                        <Icon name="trash" size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="field__row">
-                  <button className="solid-btn" onClick={addModel} type="button">
-                    <Icon name="plus" size={14} />
-                    Add model
-                  </button>
+              <div className="settings-group settings-group--connection-status">
+                <div className="connection-card">
+                  <div className="connection-card__icon"><Icon name="sparkle" size={17} /></div>
+                  <div>
+                    <strong>One Space. One agent.</strong>
+                    <p>Your Space handles planning, execution, and streaming progress.</p>
+                  </div>
                   <button className="solid-btn" onClick={onTest} disabled={testing} type="button">
                     <Icon name="refresh" size={14} />
-                    {testing ? 'Testing…' : 'Test connection'}
+                    {testing ? 'Checking…' : 'Check connection'}
                   </button>
                 </div>
                 {health ? (
@@ -585,7 +307,6 @@ export function SettingsDialog({
                   </div>
                 ) : null}
               </div>
-
               <div className="settings-group">
                 <h3 className="settings-group__title">Generation</h3>
                 <p className="settings-group__desc">Defaults applied to every request.</p>
@@ -840,7 +561,7 @@ export function SettingsDialog({
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
                 <span className="badge">v1.0.0</span>
-                <span className="badge">Bring your own model</span>
+                <span className="badge">Connected Space agent</span>
                 <span className="badge">Runs locally</span>
               </div>
             </div>
@@ -849,8 +570,4 @@ export function SettingsDialog({
       </div>
     </Modal>
   )
-}
-
-function transportSource(transport: Transport): string {
-  return transport === 'server' ? 'ShadowAI backend' : 'custom'
 }

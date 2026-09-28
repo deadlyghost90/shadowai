@@ -99,7 +99,7 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations())
   const [activeId, setActiveId] = useState<string>('')
-  const [mode, setMode] = useState<Mode>('chat')
+  const [mode, setMode] = useState<Mode>('agent')
   const [input, setInput] = useState('')
   const [pending, setPending] = useState<Attachment[]>([])
   const [busy, setBusy] = useState(false)
@@ -334,7 +334,7 @@ export default function App() {
     setBusy(false)
     setInput('')
     setPending([])
-    setMode('chat')
+    setMode('agent')
     setSearch('')
     setPreview(null)
     const fresh = emptyConversation()
@@ -559,9 +559,9 @@ export default function App() {
   const send = useCallback(
     async (text: string, attachments: Attachment[], runMode: Mode) => {
       if (!ready) {
-        setSettingsTab('model')
+        setSettingsTab('connection')
         setSettingsOpen(true)
-        toast('Connect your AI model first', 'err')
+        toast('Connect Shadow Space first', 'err')
         return
       }
       const body = text.trim()
@@ -741,7 +741,7 @@ export default function App() {
       editPrompt,
       toggleSave,
       openModelSettings: () => {
-        setSettingsTab('model')
+        setSettingsTab('connection')
         setSettingsOpen(true)
       },
       stop,
@@ -1006,9 +1006,9 @@ export default function App() {
 
   const run = streamingMessage?.run
   const statusText = !ready
-    ? 'No model connected — open Settings → Model'
+    ? 'Connect Shadow Space to start your agent'
     : mode === 'agent'
-      ? 'Agent mode · multi-step tasks with visible progress'
+      ? 'Agent ready · plans, executes, and checks your work'
       : `Chat mode · ${transportLabel(settings.provider)}`
 
   const busyText = busy
@@ -1105,10 +1105,11 @@ export default function App() {
             <div className="empty__brand">
               <Mark size={isMobile ? 56 : 68} />
               <h1 className="empty__title">ShadowAI</h1>
-              <p className="empty__tagline">Your AI. Your workspace.</p>
+              <p className="empty__eyebrow">SHADOWMOTION AGENT WORKSPACE</p>
+              <p className="empty__tagline">Turn a brief into finished work.</p>
             </div>
 
-            <p className="empty__ask">How can I help you today?</p>
+            <p className="empty__ask">Tell your agent what to plan, build, research, or fix.</p>
 
             {!ready ? (
               <div className="notice">
@@ -1116,19 +1117,19 @@ export default function App() {
                   <Icon name="key" size={15} />
                 </span>
                 <div>
-                  <div className="notice__title">Connect your AI model</div>
+                  <div className="notice__title">Connect Shadow Space</div>
                   <p className="notice__desc">
-                    ShadowAI ships without a model of its own. Point it at your own endpoint — hosted,
-                    local, or self-hosted — and it is ready to chat.
+                    Add your Space URL and token once. ShadowAI will use the connected Space for agent
+                    planning, execution, and progress updates.
                   </p>
                   <button
                     className="solid-btn solid-btn--accent"
                     style={{ marginTop: 10, height: 32, fontSize: 13 }}
-                    onClick={() => openSettings('model')}
+                    onClick={() => openSettings('connection')}
                     type="button"
                   >
                     <Icon name="settings" size={13} />
-                    Connect a model
+                    Connect Shadow Space
                   </button>
                 </div>
               </div>
@@ -1197,7 +1198,7 @@ export default function App() {
           onModelChange={(id) =>
             setSettings((s) => ({ ...s, provider: { ...s.provider, selectedModel: id } }))
           }
-          onConfigureModel={() => openSettings('model')}
+          onConfigureModel={() => openSettings('connection')}
           attachments={pending}
           onFiles={(f) => void onFiles(f)}
           onRemoveAttachment={removeAttachment}

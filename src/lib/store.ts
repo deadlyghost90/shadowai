@@ -8,7 +8,7 @@
  */
 
 import type { Conversation, Message } from './ai/types'
-import { DEFAULT_SETTINGS, type AppSettings } from './ai/config'
+import { DEFAULT_SETTINGS, SHADOW_SPACE_TOKEN, SHADOW_SPACE_URL, type AppSettings } from './ai/config'
 
 const CONV_KEY = 'shadowai.conversations.v1'
 const SETTINGS_KEY = 'shadowai.settings.v1'
@@ -22,10 +22,20 @@ export function loadSettings(): AppSettings {
     const raw = localStorage.getItem(SETTINGS_KEY)
     if (!raw) return structuredCloneish(DEFAULT_SETTINGS)
     const parsed = JSON.parse(raw) as Partial<AppSettings>
+    const provider = { ...DEFAULT_SETTINGS.provider, ...(parsed.provider || {}) }
+    // ShadowAI now has one connection path: the configured Hugging Face Space.
+    // Migrate older direct/backend settings instead of leaving the provider
+    // pointed at an endpoint the UI no longer exposes.
+    if (provider.transport !== 'space') {
+      provider.transport = 'space'
+      provider.baseUrl = SHADOW_SPACE_URL
+    }
+    if (!provider.baseUrl) provider.baseUrl = SHADOW_SPACE_URL
+    if (!provider.apiKey && SHADOW_SPACE_TOKEN) provider.apiKey = SHADOW_SPACE_TOKEN
     return {
       ...structuredCloneish(DEFAULT_SETTINGS),
       ...parsed,
-      provider: { ...DEFAULT_SETTINGS.provider, ...(parsed.provider || {}) },
+      provider,
       appearance: { ...DEFAULT_SETTINGS.appearance, ...(parsed.appearance || {}) },
       account: { ...DEFAULT_SETTINGS.account, ...(parsed.account || {}) },
       profile: { ...DEFAULT_SETTINGS.profile, ...(parsed.profile || {}) },

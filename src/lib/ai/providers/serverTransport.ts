@@ -61,7 +61,7 @@ export function createServerProvider(cfg: ProviderConfig, apiBase = ''): AIProvi
       } catch (e) {
         if ((e as Error)?.name === 'AbortError') throw e
         throw new ProviderError('ShadowAI could not reach its backend.', 'network',
-          'Start it with `npm run server` or switch transport to Direct in Settings → Model.')
+          'Start it with `npm run server` or switch transport to Direct in Settings → Connection.')
       }
 
       if (!res.ok) {

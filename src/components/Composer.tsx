@@ -57,9 +57,6 @@ export function Composer(props: ComposerProps) {
     mode,
     onModeChange,
     models,
-    model,
-    modelLabel,
-    onModelChange,
     onConfigureModel,
     attachments,
     onFiles,
@@ -74,7 +71,6 @@ export function Composer(props: ComposerProps) {
   const [focused, setFocused] = useState(false)
   const [dragging, setDragging] = useState(false)
   const modeAnchor = useAnchored()
-  const modelAnchor = useAnchored()
 
   const resize = useCallback(() => {
     const el = ta.current
@@ -88,16 +84,6 @@ export function Composer(props: ComposerProps) {
   useEffect(() => {
     if (!busy) ta.current?.focus()
   }, [busy])
-
-  // closing one menu closes the other
-  useEffect(() => {
-    if (modeAnchor.open) modelAnchor.close()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modeAnchor.open])
-  useEffect(() => {
-    if (modelAnchor.open) modeAnchor.close()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelAnchor.open])
 
   const handleFiles = useCallback(
     (list: FileList | null) => {
@@ -230,20 +216,13 @@ export function Composer(props: ComposerProps) {
           </button>
 
           <button
-            ref={modelAnchor.ref}
-            className="pill"
-            onClick={modelAnchor.toggle}
+            className={cx('pill', !ready && 'pill--offline')}
+            onClick={onConfigureModel}
             type="button"
-            aria-expanded={modelAnchor.open}
-            aria-haspopup="menu"
-            title={modelCount ? modelLabel : 'Connect a model in Settings → Model'}
+            title={ready ? 'Shadow Space connection' : 'Connect Shadow Space'}
           >
-            <span
-              className="pill__dot"
-              style={{ color: modelCount ? 'var(--accent)' : 'var(--muted-2)' }}
-            />
-            <span className="pill__label">{modelCount ? modelLabel || model : 'No model'}</span>
-            <Icon name="chevronDown" size={11} className="pill__chev" />
+            <span className="pill__dot" style={{ color: ready ? 'var(--accent)' : 'var(--muted-2)' }} />
+            <span className="pill__label">{ready ? 'Shadow Space' : 'Connect Space'}</span>
           </button>
 
           <span className="composer__spacer" />
@@ -310,56 +289,6 @@ export function Composer(props: ComposerProps) {
         </button>
       </Popover>
 
-      <Popover
-        open={modelAnchor.open}
-        anchor={modelAnchor.anchor}
-        onClose={modelAnchor.close}
-        width={292}
-        ariaLabel="Model"
-      >
-        <div className="popover__head">Model</div>
-        {modelCount === 0 ? (
-          <div className="popover__empty">
-            No models configured yet.
-            <br />
-            Connect your AI model to start.
-          </div>
-        ) : (
-          models.map((m) => (
-            <button
-              key={m.id}
-              className={cx('menu-item', m.id === model && 'is-selected')}
-              onClick={() => {
-                onModelChange(m.id)
-                modelAnchor.close()
-              }}
-              type="button"
-            >
-              <span className="menu-item__body">
-                <span className="menu-item__title">{m.label || m.id}</span>
-                {m.source ? <span className="menu-item__sub">{m.source}</span> : null}
-              </span>
-              {m.id === model ? <Icon name="check" size={14} className="menu-item__check" /> : null}
-            </button>
-          ))
-        )}
-        <div className="menu-sep" />
-        <button
-          className="menu-item"
-          onClick={() => {
-            modelAnchor.close()
-            onConfigureModel()
-          }}
-          type="button"
-        >
-          <Icon name="settings" size={14} style={{ color: 'var(--muted)' }} />
-          <span className="menu-item__body">
-            <span className="menu-item__title">Manage models</span>
-          </span>
-        </button>
-      </Popover>
-
-      {/* keeps the popover height hint honest if the model list is long */}
       <span hidden data-hint={modelListHeight} />
     </div>
   )

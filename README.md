@@ -2,11 +2,9 @@
 
 **by ShadowMotion**
 
-A conversation-first AI workspace. Open it, start typing, chat. Switch to Agent when the work
-takes several steps. Everything — including generated files — stays in one thread.
+A conversation-first AI workspace. Open it, start typing, chat. Use Agent mode for multi-step work that needs planning and execution. Everything — including generated files — stays in one thread.
 
-ShadowAI ships with **no model of its own**. It is already pointed at Shadow v1.1; you can
-point it anywhere you like.
+ShadowAI connects directly to the ShadowMotion Hugging Face Space running Shadow v1.1.
 
 ---
 
@@ -27,13 +25,13 @@ run the bundled mock in a second terminal — it speaks the same two wire format
 node tools/mock-model.mjs     # :8899
 ```
 
-…and point **Settings → Model** at `http://localhost:8899`.
+…and point **Settings → Connection** at `http://localhost:8899`.
 
 ---
 
-## Connecting your model
+## Connecting your Space
 
-ShadowAI talks to models through a single interface, `AIProvider`
+ShadowAI talks to the connected Space through a single `AIProvider` interface
 (`src/lib/ai/types.ts`). Nothing in the UI knows which vendor is serving.
 
 ```ts
@@ -114,7 +112,7 @@ them verbatim in the top bar rather than inventing its own spinner text. The req
 prompt **both** as `message` and as a structured `messages` array, so it works whichever
 shape the backend implements.
 
-The token is stored per-browser and can be rotated in **Settings → Model** without a rebuild.
+The Space token is stored per-browser and can be rotated in **Settings → Connection** without a rebuild.
 
 ### Custom endpoint
 
@@ -130,7 +128,7 @@ SHADOWAI_MODEL=your-model-id \
 npm run server            # :8787
 ```
 
-Then pick **ShadowAI backend** in Settings → Model, or drop the same keys into
+The app is Space-only; the bundled backend remains available for server-side experiments but is not exposed in Settings.
 `server/shadowai.config.json`. To point a built frontend at a backend on another origin,
 set `VITE_SHADOWAI_API` at build time.
 
@@ -228,7 +226,7 @@ A block that is still streaming shows as `writing…` instead of a half-drawn co
 - Syntax-highlighted code blocks with copy / expand / download
 - Per-message copy, regenerate, continue, edit, save
 - Conversation history with rename, archive, delete, and full-text search
-- Model selector showing only models you configured
+- One-click Space connection with URL and token health checks
 - Streaming errors rendered inside the conversation — no stack traces
 - Local persistence with quota-aware shrinking; JSON export / import
 - Dark-first design on the ShadowMotion green palette, responsive to mobile
