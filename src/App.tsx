@@ -31,13 +31,15 @@ import {
   saveConversations,
   saveSettings,
 } from './lib/store'
-import { signOut, watchAuth } from './lib/firebase'
+import { getFirebaseAuth, onIdTokenChanged, signOut, watchAuth } from './lib/firebase'
 import {
   completeOnboarding,
   createSyncer,
   loadProfile,
+  saveProfile,
   watchConversations,
   type OnboardingAnswers,
+  type SyncStatus,
   type UserProfile,
 } from './lib/cloud'
 import { cx, downloadText, titleFromMessage, uid } from './lib/utils'
@@ -122,8 +124,16 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [profileReady, setProfileReady] = useState(false)
   const [stage, setStage] = useState<string>('')
+  const [sync, setSync] = useState<SyncStatus>({ pending: 0, error: null })
   const cloudHydrated = useRef(false)
   const syncer = useRef<ReturnType<typeof createSyncer> | null>(null)
+  /** true while we are applying a snapshot pushed down from Firebase */
+  const applyingRemote = useRef(false)
+  /** always-current conversations, for flushing at safe moments (tab hide, end of run) */
+  const conversationsRef = useRef(conversations)
+  useEffect(() => {
+    conversationsRef.current = conversations
+  }, [conversations])
 
   const threadRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -235,47 +245,99 @@ export default function App() {
     if (!user) {
       syncer.current?.dispose()
       syncer.current = null
+      setSync({ pending: 0, error: null })
       return
     }
 
-    syncer.current = createSyncer(user.uid)
+    const s = createSyncer(user.uid)
+    syncer.current = s
     cloudHydrated.current = false
 
-    const off = watchConversations(user.uid, (remote) => {
-      if (!cloudHydrated.current) {
-        cloudHydrated.current = true
-        // first load: prefer the cloud copy, but keep anything this device has
-        // that has not made it up yet
+    // surface save state (and real Firebase errors) instead of failing silently
+    const unsub = s.subscribe(setSync)
+
+    const off = watchConversations(
+      user.uid,
+      (remote) => {
+        if (!cloudHydrated.current) {
+          cloudHydrated.current = true
+          // first load: prefer the cloud copy, but keep anything this device has
+          // that has not made it up yet
+          setConversations((local) => {
+            const byId = new Map(remote.map((c) => [c.id, c]))
+            let dirty = false
+            for (const c of local) {
+              const their = byId.get(c.id)
+              if (!their || c.updatedAt > their.updatedAt) {
+                byId.set(c.id, c)
+                dirty = true
+              }
+            }
+            const merged = [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt)
+            if (dirty) for (const c of merged) s.queue(c)
+            return merged
+          })
+          return
+        }
+        applyingRemote.current = true
         setConversations((local) => {
-          const byId = new Map(remote.map((c) => [c.id, c]))
-          for (const c of local) if (!byId.has(c.id)) byId.set(c.id, c)
-          const merged = [...byId.values()].sort((a, b) => b.updatedAt - a.updatedAt)
-          for (const c of merged) syncer.current?.queue(c)
-          return merged
+          // never clobber a message that is mid-stream on this device
+          const liveId = stream.current.id
+          const isLive = local.some((c) => c.messages.some((m) => m.id === liveId))
+          if (isLive && stream.current.active) return local
+          return remote
         })
-        return
-      }
-      setConversations((local) => {
-        // never clobber a message that is mid-stream on this device
-        const liveId = stream.current.id
-        const isLive = local.some((c) => c.messages.some((m) => m.id === liveId))
-        if (isLive && stream.current.active) return local
-        return remote
-      })
-    })
+        // let the resulting render pass through the queue effect without re-upload
+        requestAnimationFrame(() => {
+          applyingRemote.current = false
+        })
+      },
+      (message) => {
+        // read path failed — almost always unpublished rules / disabled provider
+        setSync((prev) => ({ pending: prev.pending, error: message }))
+        toast(message, 'err')
+      },
+    )
 
     return () => {
       off()
-      syncer.current?.dispose()
+      unsub()
+      s.dispose()
       syncer.current = null
     }
-  }, [user])
+  }, [user, toast])
 
-  /* push local edits to the cloud, debounced */
+  /* push local edits to the cloud (the syncer debounces and retries) */
   useEffect(() => {
     if (!user || !cloudHydrated.current) return
+    if (applyingRemote.current) return
     for (const c of conversations) syncer.current?.queue(c)
   }, [conversations, user])
+
+  /* keep the token fresh so long-lived tabs never lose write access */
+  useEffect(() => {
+    if (!user) return
+    const off = onIdTokenChanged(getFirebaseAuth(), (u) => {
+      void u?.getIdToken(true).catch(() => undefined)
+    })
+    return off
+  }, [user])
+
+  /* presence heartbeat + flush anything still queued when the tab closes */
+  useEffect(() => {
+    if (!user) return
+    const beat = window.setInterval(() => {
+      void saveProfile(user.uid, {}).catch(() => undefined)
+    }, 5 * 60_000)
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') void syncer.current?.flushNow()
+    }
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      window.clearInterval(beat)
+      document.removeEventListener('visibilitychange', onHide)
+    }
+  }, [user])
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 860px)')
@@ -477,6 +539,11 @@ export default function App() {
         content: s.text,
         artifacts: s.artifacts.length ? s.artifacts : undefined,
       })
+      // a finished answer is the moment users expect it to be safe — upload now
+      window.setTimeout(() => {
+        const conv = conversationsRef.current.find((c) => c.id === convId)
+        if (conv) void syncer.current?.flushNow(conv)
+      }, 120)
     },
     [patchMessage],
   )
@@ -1061,6 +1128,13 @@ export default function App() {
                   ) : (
                     <span>Agent unavailable</span>
                   )}
+                  <span className="topbar__sep" />
+                  <span
+                    className={cx('sync-state', sync.error && 'is-error', sync.pending > 0 && 'is-pending')}
+                    title={sync.error || undefined}
+                  >
+                    {sync.error ? 'Sync paused' : sync.pending > 0 ? 'Saving…' : user ? 'Saved in cloud' : 'Local only'}
+                  </span>
                 </>
               )}
             </span>

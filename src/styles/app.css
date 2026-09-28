@@ -494,6 +494,19 @@
   animation: pulse-dot 1.1s var(--ease) infinite;
 }
 
+/* cloud save state in the top bar */
+.sync-state {
+  color: var(--muted-2);
+  font-variant-numeric: tabular-nums;
+}
+.sync-state.is-pending {
+  color: var(--accent);
+}
+.sync-state.is-error {
+  color: #f0b429;
+  cursor: help;
+}
+
 /* ======================================================== EMPTY STATE === */
 
 .empty {
