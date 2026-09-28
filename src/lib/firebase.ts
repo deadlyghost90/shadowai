@@ -9,6 +9,7 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import {
   getAuth,
+  onIdTokenChanged,
   GoogleAuthProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -116,6 +117,12 @@ export function signOut(): Promise<void> {
 export function watchAuth(cb: (user: User | null) => void): () => void {
   return onAuthStateChanged(getFirebaseAuth(), cb)
 }
+
+/**
+ * Fires whenever the user's ID token is issued/refreshed/expired. Used to keep
+ * long-lived tabs authenticated so database writes never silently lose access.
+ */
+export { onIdTokenChanged }
 
 /**
  * Firebase auth errors are coded and safe to show, but the raw codes are not
