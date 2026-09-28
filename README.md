@@ -18,18 +18,18 @@ npm run dev          # http://localhost:5173
 You will land on the sign-in door. Create an account with Google or email and password,
 answer nine short questions, and you are in.
 
-Shadow v1.1 is already wired up via `.env`. To try everything without touching a real model,
+The coding agent is already wired to the deployed ShadowMotion Space. To try the UI without touching the real agent,
 run the bundled mock in a second terminal — it speaks the same two wire formats:
 
 ```bash
 node tools/mock-model.mjs     # :8899
 ```
 
-…and point **Settings → Connection** at `http://localhost:8899`.
+The mock is intended for transport development only; it is not exposed as a website setting.
 
 ---
 
-## Connecting your Space
+## Internal agent transport
 
 ShadowAI talks to the connected Space through a single `AIProvider` interface
 (`src/lib/ai/types.ts`). Nothing in the UI knows which vendor is serving.
@@ -69,7 +69,7 @@ apart:
 | Result | Meaning |
 | --- | --- |
 | `404` on every path | the Space is private or stopped — make it public |
-| `401 Missing authorization` | no token arrived — set `VITE_SHADOW_SPACE_TOKEN` |
+| `401 Missing authorization` | the deployed agent credential is unavailable or rejected |
 | `403 Invalid token` **and** HF says the token is valid | the Space is checking against its own secret, which is a different value |
 | `403 Invalid token` **and** HF also rejects it | the token is not a real Hugging Face token |
 
@@ -78,7 +78,7 @@ In the third case the fix is on the Space, not here:
 1. Space page → **Settings → Variables and Secrets**
 2. set the secret it checks (commonly `API_TOKEN`, `HF_TOKEN`, or `SHADOW_TOKEN`) to the value
    you want to use
-3. put the same value in `.env` as `VITE_SHADOW_SPACE_TOKEN`
+3. keep the deployed agent credential server-side; the website has no credential form
 
 Verify any token against Hugging Face on its own:
 
@@ -91,12 +91,7 @@ A valid token returns your account; an invalid one returns
 
 ### Shadow v1.1 (the Space)
 
-Configured in `.env`:
-
-```
-VITE_SHADOW_SPACE_URL=https://<your-space>.hf.space
-VITE_SHADOW_SPACE_TOKEN=hf_…
-```
+The deployed agent endpoint is configured internally; end users do not enter a URL or token.
 
 ShadowAI calls `GET /health` to check the model and `POST /api/chat` to talk to it. The
 response is newline-delimited JSON, not SSE:
@@ -112,12 +107,12 @@ them verbatim in the top bar rather than inventing its own spinner text. The req
 prompt **both** as `message` and as a structured `messages` array, so it works whichever
 shape the backend implements.
 
-The Space token is stored per-browser and can be rotated in **Settings → Connection** without a rebuild.
+The agent connection is internal to the deployment and is not exposed in the website UI.
 
-### Custom endpoint
+### Development transports
 
-The key lives in `localStorage` on your device and the request goes straight to your
-endpoint — it must allow browser (CORS) requests. Presets cover the common shapes.
+The legacy direct and bundled transports remain in the source for development and migration,
+but they are not exposed in the product UI.
 
 ### ShadowAI backend (key never touches the browser)
 
@@ -128,7 +123,7 @@ SHADOWAI_MODEL=your-model-id \
 npm run server            # :8787
 ```
 
-The app is Space-only; the bundled backend remains available for server-side experiments but is not exposed in Settings.
+The app is agent-only; the bundled backend remains available for server-side experiments but is not exposed in the product UI.
 `server/shadowai.config.json`. To point a built frontend at a backend on another origin,
 set `VITE_SHADOWAI_API` at build time.
 
@@ -226,7 +221,7 @@ A block that is still streaming shows as `writing…` instead of a half-drawn co
 - Syntax-highlighted code blocks with copy / expand / download
 - Per-message copy, regenerate, continue, edit, save
 - Conversation history with rename, archive, delete, and full-text search
-- One-click Space connection with URL and token health checks
+- Built-in plugins, skills, and libraries workspace for coding tasks
 - Streaming errors rendered inside the conversation — no stack traces
 - Local persistence with quota-aware shrinking; JSON export / import
 - Dark-first design on the ShadowMotion green palette, responsive to mobile
@@ -317,7 +312,7 @@ from its hostname, confirms it is public and running, calls `/health`, then make
 
 - The HF token and any API key live in `.env` (gitignored) or in `localStorage`. Neither is
   baked into a build you publish, as long as you keep them out of tracked files.
-- The Space token is sent from the browser, so anyone with devtools can read it. That is fine
+- The website does not expose or collect Space credentials
   for a private Space. For a paid or shared backend, use **ShadowAI backend** and keep the
   credential server-side.
 - The file preview renders generated HTML in a sandboxed iframe without `allow-same-origin`,

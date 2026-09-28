@@ -1,8 +1,8 @@
 /**
  * User-owned configuration for the AI backend.
  *
- * Nothing here is hard-coded to a vendor. The user brings an endpoint that
- * speaks a common wire format, or points ShadowAI at the bundled proxy.
+ * The product ships with one internal coding-agent endpoint. Transport details stay
+ * behind this seam so the website never exposes credentials or model management.
  */
 
 export type Transport = 'direct' | 'server' | 'space'
@@ -11,18 +11,17 @@ export type Transport = 'direct' | 'server' | 'space'
  * The ShadowAI model space.
  *
  * The URL is public information and lives here. The token is a credential, so
- * it comes from `VITE_SHADOW_SPACE_TOKEN` (see `.env`) and can be rotated at
- * any time from Settings → Connection without rebuilding.
+ * it is internal to the deployed agent connection and never entered in the website UI.
  */
 export const SHADOW_SPACE_URL =
   (import.meta.env?.VITE_SHADOW_SPACE_URL as string) ||
   'https://deadlyghost5090-fs-intelligence-whatsapp.hf.space'
 
-export const SHADOW_SPACE_TOKEN = (import.meta.env?.VITE_SHADOW_SPACE_TOKEN as string) || ''
+export const SHADOW_SPACE_TOKEN = (import.meta.env?.VITE_SHADOW_SPACE_TOKEN as string) || 'shadowai-internal'
 
 export const SHADOW_MODEL = {
   id: 'shadow-v1.1',
-  label: 'Shadow v1.1',
+  label: 'Shadow Coding Agent',
   source: 'ShadowMotion',
 }
 
@@ -71,9 +70,9 @@ export interface AppSettings {
   }
 }
 
-export const DEFAULT_SYSTEM_PROMPT = `You are ShadowAI, the AI workspace built by ShadowMotion.
+export const DEFAULT_SYSTEM_PROMPT = `You are ShadowAI, the coding agent built by ShadowMotion.
 
-You are precise, calm, and useful. You favour clear, well-structured answers over long ones.
+You are an action-oriented senior software engineer. Do the work instead of only describing what could be done. Be precise, calm, and useful; prefer verified changes and concrete outputs over narration.
 
 When you write code, always use fenced code blocks with a language tag.
 When you produce complete files the user should receive, emit them as:

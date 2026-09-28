@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import type { Attachment, Mode, ProviderModel } from '../lib/ai/types'
+import type { Attachment, Mode } from '../lib/ai/types'
 import { Icon } from './Icon'
 import { Popover, useAnchored } from './Overlay'
 import { cx, formatBytes } from '../lib/utils'
@@ -32,11 +32,6 @@ export interface ComposerProps {
   busy: boolean
   mode: Mode
   onModeChange: (m: Mode) => void
-  models: ProviderModel[]
-  model: string
-  modelLabel: string
-  onModelChange: (id: string) => void
-  onConfigureModel: () => void
   attachments: Attachment[]
   onFiles: (files: File[]) => void
   onRemoveAttachment: (id: string) => void
@@ -56,8 +51,6 @@ export function Composer(props: ComposerProps) {
     busy,
     mode,
     onModeChange,
-    models,
-    onConfigureModel,
     attachments,
     onFiles,
     onRemoveAttachment,
@@ -113,8 +106,6 @@ export function Composer(props: ComposerProps) {
   }
 
   const canSend = (value.trim().length > 0 || attachments.length > 0) && ready && !busy
-  const modelCount = models.length
-  const modelListHeight = Math.min(200, 46 + modelCount * 44)
 
   return (
     <div className="composer-dock">
@@ -215,15 +206,10 @@ export function Composer(props: ComposerProps) {
             <Icon name="chevronDown" size={11} className="pill__chev" />
           </button>
 
-          <button
-            className={cx('pill', !ready && 'pill--offline')}
-            onClick={onConfigureModel}
-            type="button"
-            title={ready ? 'Shadow Space connection' : 'Connect Shadow Space'}
-          >
+          <span className={cx('pill', 'pill--space', !ready && 'pill--offline')} title="Shadow Space agent">
             <span className="pill__dot" style={{ color: ready ? 'var(--accent)' : 'var(--muted-2)' }} />
-            <span className="pill__label">{ready ? 'Shadow Space' : 'Connect Space'}</span>
-          </button>
+            <span className="pill__label">Coding Agent</span>
+          </span>
 
           <span className="composer__spacer" />
 
@@ -289,7 +275,6 @@ export function Composer(props: ComposerProps) {
         </button>
       </Popover>
 
-      <span hidden data-hint={modelListHeight} />
     </div>
   )
 }

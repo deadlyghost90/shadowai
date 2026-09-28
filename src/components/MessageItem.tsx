@@ -23,7 +23,7 @@ export interface MessageActions {
   continueReply: (id: string) => void
   editPrompt: (id: string) => void
   toggleSave: (id: string) => void
-  openModelSettings: () => void
+  openWorkspaceSettings: () => void
   stop: () => void
 }
 
@@ -214,9 +214,9 @@ export function MessageItem({
               <Icon name="refresh" size={13} />
               Retry
             </button>
-            <button className="solid-btn" onClick={actions.openModelSettings} type="button">
+            <button className="solid-btn" onClick={actions.openWorkspaceSettings} type="button">
               <Icon name="settings" size={13} />
-              {message.errorKind === 'auth' || message.errorKind === 'model' ? 'Model settings' : 'Try another model'}
+              {message.errorKind === 'auth' || message.errorKind === 'model' ? 'Agent settings' : 'Try again'}
             </button>
           </div>
         </div>

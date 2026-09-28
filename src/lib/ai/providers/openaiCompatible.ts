@@ -55,7 +55,7 @@ function normaliseBase(base: string): string {
 function classify(status: number, body?: string): ProviderError {
   if (status === 401 || status === 403) {
     return new ProviderError('ShadowAI could not authenticate with your model.', 'auth',
-      'Check the API key and auth header in Settings → Connection.')
+      'The internal coding agent credential is unavailable.')
   }
   if (status === 404) {
     return new ProviderError('ShadowAI could not reach that model endpoint.', 'model',
@@ -110,7 +110,7 @@ export function createOpenAICompatibleProvider(cfg: ProviderConfig): AIProvider 
     async chat(req: ProviderRequest): Promise<void> {
       if (!base) {
         throw new ProviderError('No model endpoint configured yet.', 'connection',
-          'Open Settings → Connection to connect Shadow Space.')
+          'The internal coding agent endpoint is unavailable.')
       }
 
       const body: Record<string, unknown> = {

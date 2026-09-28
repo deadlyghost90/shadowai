@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { AppSettings, ProviderConfig } from '../lib/ai/config'
-import type { ProviderHealth } from '../lib/ai/types'
+import type { AppSettings } from '../lib/ai/config'
 import { Icon, type IconName } from './Icon'
 import { Mark } from './Mark'
 import { Modal } from './Overlay'
@@ -14,7 +13,6 @@ import { cx, formatBytes } from '../lib/utils'
 
 export type SettingsTab =
   | 'appearance'
-  | 'connection'
   | 'account'
   | 'data'
   | 'shortcuts'
@@ -22,7 +20,6 @@ export type SettingsTab =
 
 const TABS: { id: SettingsTab; label: string; icon: IconName }[] = [
   { id: 'appearance', label: 'Appearance', icon: 'sparkle' },
-  { id: 'connection', label: 'Connection', icon: 'sparkle' },
   { id: 'account', label: 'Account', icon: 'user' },
   { id: 'data', label: 'Data', icon: 'database' },
   { id: 'shortcuts', label: 'Shortcuts', icon: 'terminal' },
@@ -77,9 +74,6 @@ export function SettingsDialog({
   onTab,
   onClose,
   onChange,
-  onTest,
-  health,
-  testing,
   stats,
   onExport,
   onImport,
@@ -93,9 +87,6 @@ export function SettingsDialog({
   onTab: (t: SettingsTab) => void
   onClose: () => void
   onChange: (next: AppSettings) => void
-  onTest: () => void
-  health: ProviderHealth | null
-  testing: boolean
   stats: { conversations: number; messages: number; bytes: number; saved: number }
   onExport: () => void
   onImport: (file: File) => void
@@ -103,12 +94,8 @@ export function SettingsDialog({
   account: { displayName: string; email: string; photoURL: string; role: string }
   onSignOut: () => Promise<void>
 }) {
-  const [showKey, setShowKey] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
 
-  const p = settings.provider
-  const setProvider = (patch: Partial<ProviderConfig>) =>
-    onChange({ ...settings, provider: { ...p, ...patch } })
   const setAppearance = (patch: Partial<AppSettings['appearance']>) =>
     onChange({ ...settings, appearance: { ...settings.appearance, ...patch } })
   const setAccount = (patch: Partial<AppSettings['account']>) =>
@@ -222,139 +209,6 @@ export function SettingsDialog({
                     label="Reduce motion"
                   />
                 </Row>
-              </div>
-            </>
-          ) : null}
-
-          {/* ----------------------------------------------------- connection */}
-          {tab === 'connection' ? (
-            <>
-              <div className="settings-group">
-                <h3 className="settings-group__title">Connect your Space</h3>
-                <p className="settings-group__desc">
-                  ShadowAI connects directly to one Hugging Face Space. Paste the Space URL and the
-                  token it expects, then check the connection.
-                </p>
-                <div className="field">
-                  <label className="field__label" htmlFor="cfg-space-url">Space URL</label>
-                  <input
-                    id="cfg-space-url"
-                    className="input"
-                    value={p.baseUrl}
-                    placeholder="https://your-space.hf.space"
-                    spellCheck={false}
-                    onChange={(e) => setProvider({ transport: 'space', baseUrl: e.target.value })}
-                  />
-                  <span className="field__hint">
-                    ShadowAI calls <code>/health</code> and <code>/api/chat</code> on this Space.
-                  </span>
-                </div>
-                <div className="field">
-                  <label className="field__label" htmlFor="cfg-space-key">Space token</label>
-                  <div className="field__row">
-                    <input
-                      id="cfg-space-key"
-                      className="input"
-                      type={showKey ? 'text' : 'password'}
-                      value={p.apiKey}
-                      placeholder="hf_… or your Space secret"
-                      spellCheck={false}
-                      autoComplete="off"
-                      onChange={(e) => setProvider({ transport: 'space', apiKey: e.target.value })}
-                    />
-                    <button
-                      className="icon-btn"
-                      onClick={() => setShowKey((v) => !v)}
-                      type="button"
-                      aria-label={showKey ? 'Hide token' : 'Show token'}
-                    >
-                      <Icon name={showKey ? 'eyeOff' : 'eye'} size={15} />
-                    </button>
-                  </div>
-                  <span className="field__hint">
-                    Sent as <code>Authorization: Bearer …</code>. Stored in this browser only.
-                  </span>
-                </div>
-              </div>
-              <div className="settings-group settings-group--connection-status">
-                <div className="connection-card">
-                  <div className="connection-card__icon"><Icon name="sparkle" size={17} /></div>
-                  <div>
-                    <strong>One Space. One agent.</strong>
-                    <p>Your Space handles planning, execution, and streaming progress.</p>
-                  </div>
-                  <button className="solid-btn" onClick={onTest} disabled={testing} type="button">
-                    <Icon name="refresh" size={14} />
-                    {testing ? 'Checking…' : 'Check connection'}
-                  </button>
-                </div>
-                {health ? (
-                  <div
-                    className="inline-error"
-                    style={{
-                      marginTop: 12,
-                      background: health.ok ? 'var(--accent-softer)' : 'var(--danger-soft)',
-                      borderColor: health.ok ? 'var(--accent-line)' : 'rgba(248,113,113,0.28)',
-                    }}
-                  >
-                    <div
-                      className="inline-error__head"
-                      style={{ color: health.ok ? 'var(--accent-bright)' : '#fecaca' }}
-                    >
-                      <Icon name={health.ok ? 'check' : 'alert'} size={15} style={{ flex: 'none', marginTop: 1 }} />
-                      <span>{health.message || (health.ok ? 'Connected.' : 'Could not connect.')}</span>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              <div className="settings-group">
-                <h3 className="settings-group__title">Generation</h3>
-                <p className="settings-group__desc">Defaults applied to every request.</p>
-                <div className="field">
-                  <span className="field__label">Temperature — {p.temperature.toFixed(2)}</span>
-                  <input
-                    className="range"
-                    type="range"
-                    min={0}
-                    max={2}
-                    step={0.05}
-                    value={p.temperature}
-                    onChange={(e) => setProvider({ temperature: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="field">
-                  <label className="field__label" htmlFor="cfg-max">
-                    Max output tokens
-                  </label>
-                  <input
-                    id="cfg-max"
-                    className="input"
-                    type="number"
-                    min={128}
-                    max={131072}
-                    step={128}
-                    value={p.maxTokens}
-                    onChange={(e) => setProvider({ maxTokens: Number(e.target.value) || 2048 })}
-                  />
-                </div>
-                <Row title="Stream responses" desc="Turn off only if your endpoint cannot stream.">
-                  <Switch on={p.stream} onChange={(v) => setProvider({ stream: v })} label="Stream responses" />
-                </Row>
-                <div className="field" style={{ marginTop: 16 }}>
-                  <label className="field__label" htmlFor="cfg-sys">
-                    System prompt
-                  </label>
-                  <textarea
-                    id="cfg-sys"
-                    className="textarea"
-                    value={p.systemPrompt}
-                    spellCheck={false}
-                    onChange={(e) => setProvider({ systemPrompt: e.target.value })}
-                  />
-                  <span className="field__hint">
-                    Defines ShadowAI's behaviour. Agent mode appends its own task-execution rules on top.
-                  </span>
-                </div>
               </div>
             </>
           ) : null}

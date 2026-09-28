@@ -6,6 +6,7 @@ import { Composer } from './components/Composer'
 import { MessageItem, type MessageActions } from './components/MessageItem'
 import { FilePreview } from './components/FileArtifacts'
 import { SettingsDialog, type SettingsTab } from './components/SettingsDialog'
+import { WorkspacePanel } from './components/WorkspacePanel'
 import { AuthGate } from './components/AuthGate'
 import { Onboarding } from './components/Onboarding'
 import type {
@@ -14,7 +15,6 @@ import type {
   Conversation,
   Message,
   Mode,
-  ProviderHealth,
 } from './lib/ai/types'
 import type { User } from 'firebase/auth'
 import type { AppSettings } from './lib/ai/config'
@@ -110,8 +110,7 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('appearance')
   const [preview, setPreview] = useState<ArtifactFile | null>(null)
   const [toasts, setToasts] = useState<{ id: string; text: string; kind: 'ok' | 'err' }[]>([])
-  const [health, setHealth] = useState<ProviderHealth | null>(null)
-  const [testing, setTesting] = useState(false)
+  const [workspaceOpen, setWorkspaceOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(() => isMobileWidth())
   const [scrolled, setScrolled] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
@@ -559,9 +558,7 @@ export default function App() {
   const send = useCallback(
     async (text: string, attachments: Attachment[], runMode: Mode) => {
       if (!ready) {
-        setSettingsTab('connection')
-        setSettingsOpen(true)
-        toast('Connect Shadow Space first', 'err')
+        toast('The coding agent is unavailable right now.', 'err')
         return
       }
       const body = text.trim()
@@ -740,9 +737,7 @@ export default function App() {
       continueReply: (id) => void continueReply(id),
       editPrompt,
       toggleSave,
-      openModelSettings: () => {
-        setSettingsTab('connection')
-        setSettingsOpen(true)
+      openWorkspaceSettings: () => {
       },
       stop,
     }),
@@ -848,19 +843,6 @@ export default function App() {
   }, [busy, isMobile, drawer, preview, newChat, stop])
 
   /* --------------------------------------------------------- settings */
-  const testConnection = useCallback(async () => {
-    setTesting(true)
-    setHealth(null)
-    try {
-      const res = await provider.health?.({ model })
-      setHealth(res ?? { ok: false, message: 'This provider cannot report health.' })
-    } catch (e) {
-      setHealth({ ok: false, message: describeError(e).message })
-    } finally {
-      setTesting(false)
-    }
-  }, [provider, model])
-
   const exportAll = useCallback(() => {
     downloadText(
       exportConversations(conversations),
@@ -1006,7 +988,7 @@ export default function App() {
 
   const run = streamingMessage?.run
   const statusText = !ready
-    ? 'Connect Shadow Space to start your agent'
+    ? 'Coding agent unavailable — retry in a moment'
     : mode === 'agent'
       ? 'Agent ready · plans, executes, and checks your work'
       : `Chat mode · ${transportLabel(settings.provider)}`
@@ -1036,6 +1018,7 @@ export default function App() {
         onToggleArchived={() => setShowArchived((v) => !v)}
         query={search}
         onQuery={setSearch}
+        onOpenWorkspace={() => setWorkspaceOpen(true)}
         onOpenSettings={openSettings}
         collapsed={collapsed}
         onToggleCollapsed={() => setCollapsed((v) => !v)}
@@ -1076,7 +1059,7 @@ export default function App() {
                       <span>{mode === 'agent' ? 'Agent' : 'Chat'}</span>
                     </>
                   ) : (
-                    <span>Not connected</span>
+                    <span>Agent unavailable</span>
                   )}
                 </>
               )}
@@ -1111,29 +1094,6 @@ export default function App() {
 
             <p className="empty__ask">Tell your agent what to plan, build, research, or fix.</p>
 
-            {!ready ? (
-              <div className="notice">
-                <span className="notice__icon">
-                  <Icon name="key" size={15} />
-                </span>
-                <div>
-                  <div className="notice__title">Connect Shadow Space</div>
-                  <p className="notice__desc">
-                    Add your Space URL and token once. ShadowAI will use the connected Space for agent
-                    planning, execution, and progress updates.
-                  </p>
-                  <button
-                    className="solid-btn solid-btn--accent"
-                    style={{ marginTop: 10, height: 32, fontSize: 13 }}
-                    onClick={() => openSettings('connection')}
-                    type="button"
-                  >
-                    <Icon name="settings" size={13} />
-                    Connect Shadow Space
-                  </button>
-                </div>
-              </div>
-            ) : null}
 
             <div className="empty__sugg">
               {SUGGESTIONS.map((s) => (
@@ -1192,13 +1152,6 @@ export default function App() {
           busy={busy}
           mode={mode}
           onModeChange={setMode}
-          models={models}
-          model={model}
-          modelLabel={activeModelLabel}
-          onModelChange={(id) =>
-            setSettings((s) => ({ ...s, provider: { ...s.provider, selectedModel: id } }))
-          }
-          onConfigureModel={() => openSettings('connection')}
           attachments={pending}
           onFiles={(f) => void onFiles(f)}
           onRemoveAttachment={removeAttachment}
@@ -1218,6 +1171,16 @@ export default function App() {
         }}
       />
 
+      <WorkspacePanel
+        open={workspaceOpen}
+        onClose={() => setWorkspaceOpen(false)}
+        onUse={(prompt) => {
+          setMode('agent')
+          setInput(prompt)
+          requestAnimationFrame(() => inputRef.current?.focus())
+        }}
+      />
+
       <SettingsDialog
         open={settingsOpen}
         tab={settingsTab}
@@ -1225,9 +1188,6 @@ export default function App() {
         onTab={setSettingsTab}
         onClose={() => setSettingsOpen(false)}
         onChange={setSettings}
-        onTest={testConnection}
-        health={health}
-        testing={testing}
         stats={stats}
         onExport={exportAll}
         onImport={(f) => void importAll(f)}

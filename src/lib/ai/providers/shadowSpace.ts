@@ -88,13 +88,13 @@ function classify(status: number, body?: string): ProviderError {
         : 'The model space rejected this token.',
       'auth',
       missing
-        ? 'Add the Space token in Settings → Connection. Public spaces can still require one.'
-        : 'The token does not match what the Space expects. Check it in Settings → Connection.',
+        ? 'The internal agent credential was rejected. Contact the deployment owner.'
+        : 'The internal agent credential does not match the deployed Space.',
     )
   }
   if (status === 404) {
     return new ProviderError('The model space is not reachable.', 'connection',
-      'Check the space is running and public, and that the URL is right.')
+      'Check that the deployed coding agent is running, then retry.')
   }
   if (status === 429) {
     return new ProviderError('The model space is rate limiting requests.', 'rate', 'Wait a moment and retry.')
@@ -128,7 +128,7 @@ export function createShadowSpaceProvider(cfg: ProviderConfig): AIProvider {
     },
 
     async health({ model, signal }): Promise<ProviderHealth> {
-      if (!base) return { ok: false, message: 'No space URL configured.', kind: 'connection' }
+      if (!base) return { ok: false, message: 'Internal coding agent endpoint unavailable.', kind: 'connection' }
       try {
         const res = await fetch(`${base}/health`, { headers: auth(), signal })
         if (!res.ok) {
@@ -150,8 +150,8 @@ export function createShadowSpaceProvider(cfg: ProviderConfig): AIProvider {
 
     async chat(req: ProviderRequest): Promise<void> {
       if (!base) {
-        throw new ProviderError('No model space URL configured yet.', 'connection',
-          'Open Settings → Connection to connect ShadowAI.')
+        throw new ProviderError('Internal coding agent endpoint unavailable.', 'connection',
+          'The internal coding agent endpoint is unavailable.')
       }
 
       const lastUser = [...req.messages].reverse().find((m) => m.role === 'user')

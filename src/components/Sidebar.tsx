@@ -34,6 +34,7 @@ export interface SidebarProps {
   onToggleArchived: () => void
   query: string
   onQuery: (q: string) => void
+  onOpenWorkspace: () => void
   onOpenSettings: (tab?: string) => void
   collapsed: boolean
   onToggleCollapsed: () => void
@@ -62,6 +63,7 @@ export function Sidebar(props: SidebarProps) {
     onToggleArchived,
     query,
     onQuery,
+    onOpenWorkspace,
     onOpenSettings,
     collapsed,
     onToggleCollapsed,
@@ -151,6 +153,11 @@ export function Sidebar(props: SidebarProps) {
           >
             <Icon name="plus" size={16} />
             <span className="new-chat__label">New Chat</span>
+          </button>
+          <button className="workspace-nav" onClick={onOpenWorkspace} type="button" title="Plugins, skills, and libraries">
+            <Icon name="grid" size={15} />
+            <span className="new-chat__label">Workspace</span>
+            <span className="workspace-nav__hint">Plugins · Skills · Libraries</span>
           </button>
 
           <div className="sidebar__search">
