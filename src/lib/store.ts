@@ -32,11 +32,16 @@ export function loadSettings(): AppSettings {
     }
     if (!provider.baseUrl) provider.baseUrl = SHADOW_SPACE_URL
     if (!provider.apiKey && SHADOW_SPACE_TOKEN) provider.apiKey = SHADOW_SPACE_TOKEN
+    const legacyGreenDefault = parsed.appearance?.theme === 'dark' && parsed.appearance?.accent === '#22C55E'
     return {
       ...structuredCloneish(DEFAULT_SETTINGS),
       ...parsed,
       provider,
-      appearance: { ...DEFAULT_SETTINGS.appearance, ...(parsed.appearance || {}) },
+      appearance: {
+        ...DEFAULT_SETTINGS.appearance,
+        ...(parsed.appearance || {}),
+        ...(legacyGreenDefault ? { theme: 'graphite', accent: '#d0d0d0' } : {}),
+      },
       account: { ...DEFAULT_SETTINGS.account, ...(parsed.account || {}) },
       profile: { ...DEFAULT_SETTINGS.profile, ...(parsed.profile || {}) },
     }

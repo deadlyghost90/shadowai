@@ -99,8 +99,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     stream: true,
   },
   appearance: {
-    theme: 'dark',
-    accent: '#22C55E',
+    theme: 'graphite',
+    accent: '#d0d0d0',
     fontScale: 1,
     reduceMotion: false,
     showTimestamps: false,
