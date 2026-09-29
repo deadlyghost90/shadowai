@@ -36,6 +36,10 @@ interface SpaceEvent {
   error?: string | { message?: string }
   task_type?: string
   tokens?: number
+  command?: string
+  output?: string
+  status?: 'started' | 'running' | 'completed' | 'failed'
+  kind?: 'stage' | 'command' | 'computer'
 }
 
 /** Flattens a structured message list into one prompt string. */
@@ -219,8 +223,12 @@ export function createShadowSpaceProvider(cfg: ProviderConfig): AIProvider {
         switch (ev.type) {
           case 'progress':
             if (req.onProgress && ev.stage) {
-              req.onProgress({ stage: ev.stage, message: ev.message || ev.stage })
+              req.onProgress({ stage: ev.stage, message: ev.message || ev.stage, kind: ev.kind || 'stage', command: ev.command, output: ev.output, status: ev.status })
             }
+            break
+          case 'command':
+          case 'computer':
+            req.onProgress?.({ stage: ev.stage || ev.type, message: ev.message || ev.command || ev.type, kind: ev.kind || ev.type, command: ev.command, output: ev.output, status: ev.status || 'running' })
             break
           case 'token':
             if (typeof ev.text === 'string' && ev.text) {

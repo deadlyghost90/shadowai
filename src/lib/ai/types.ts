@@ -118,6 +118,11 @@ export interface ProviderProgress {
   stage: string
   /** a user-facing line, safe to show verbatim */
   message: string
+  /** Optional telemetry kind emitted by a trusted backend event. */
+  kind?: 'stage' | 'command' | 'computer'
+  command?: string
+  output?: string
+  status?: 'started' | 'running' | 'completed' | 'failed'
 }
 
 export interface ProviderRequest {

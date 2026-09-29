@@ -13,15 +13,16 @@
  * Private reasoning is never requested, streamed, or displayed.
  */
 
-import type { AIProvider, AgentRun, AgentStep, ArtifactFile, Message, RunStatus, StepStatus } from './types'
+import type { AIProvider, AgentRun, AgentStep, ArtifactFile, Message, ProviderProgress, RunStatus, StepStatus } from './types'
 import { buildProviderMessages, systemPromptFor } from './messages'
 import { parseArtifacts } from './artifacts'
 import { uid } from '../utils'
 
 export interface AgentEvents {
   onRun: (run: AgentRun) => void
-  onContent: (delta: string) => void
+  onContent: (text: string) => void
   onArtifacts: (files: ArtifactFile[]) => void
+  onProgress?: (progress: ProviderProgress) => void
   onSettled: (run: AgentRun, fullText: string, stopped: boolean) => void
 }
 
@@ -126,6 +127,7 @@ export async function runAgent(args: AgentArgs): Promise<AgentRun> {
       onDelta: (d) => {
         planRaw += d
       },
+      onProgress: events.onProgress,
     })
 
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
@@ -214,6 +216,7 @@ Produce the work output for this step directly — code, copy, structure, or fin
             events.onContent(d)
             pushArtifacts()
           },
+          onProgress: events.onProgress,
         })
       } catch (e) {
         if ((e as Error)?.name === 'AbortError') throw e

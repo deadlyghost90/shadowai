@@ -17,6 +17,7 @@ import type {
   Conversation,
   Message,
   Mode,
+  ProviderProgress,
 } from './lib/ai/types'
 import type { User } from 'firebase/auth'
 import type { AppSettings } from './lib/ai/config'
@@ -125,6 +126,7 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [profileReady, setProfileReady] = useState(false)
   const [stage, setStage] = useState<string>('')
+  const [activityEvents, setActivityEvents] = useState<ProviderProgress[]>([])
   const cloudHydrated = useRef(false)
   const syncer = useRef<ReturnType<typeof createSyncer> | null>(null)
 
@@ -481,6 +483,7 @@ export default function App() {
       abortRef.current = new AbortController()
       setBusy(true)
       setStage('')
+      setActivityEvents([])
       patchMessage(convId, msgId, { error: undefined, errorHint: undefined, errorKind: undefined, stopped: false })
     },
     [patchMessage],
@@ -554,6 +557,10 @@ export default function App() {
           signal: signal as AbortSignal,
           events: {
             onRun: (run) => patchMessage(convId, msgId, { run }),
+            onProgress: (p) => {
+              setStage(p.message || p.stage)
+              setActivityEvents((current) => [...current.slice(-39), p])
+            },
             onContent: pushDelta,
             onArtifacts: (files) => {
               stream.current.artifacts = files
@@ -572,7 +579,10 @@ export default function App() {
         messages: buildProviderMessages({ history, systemPrompt, mode: 'chat' }),
         signal,
         onDelta: pushDelta,
-        onProgress: (p) => setStage(p.message || p.stage),
+        onProgress: (p) => {
+          setStage(p.message || p.stage)
+          setActivityEvents((current) => [...current.slice(-39), p])
+        },
       })
     },
     [settings.provider.systemPrompt, provider, model, patchMessage, pushDelta, flush],
@@ -1111,6 +1121,7 @@ export default function App() {
             run={liveRun}
             artifacts={liveArtifacts}
             stage={stage}
+            activityEvents={activityEvents}
             busy={busy}
             onStop={busy ? stop : undefined}
             onOpenFile={setPreview}
