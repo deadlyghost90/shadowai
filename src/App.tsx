@@ -7,6 +7,7 @@ import { MessageItem, type MessageActions } from './components/MessageItem'
 import { FilePreview } from './components/FileArtifacts'
 import { SettingsDialog, type SettingsTab } from './components/SettingsDialog'
 import { WorkspacePanel } from './components/WorkspacePanel'
+import { LiveActivityRail } from './components/LiveActivityRail'
 import { AuthGate } from './components/AuthGate'
 import { Onboarding } from './components/Onboarding'
 import type {
@@ -158,6 +159,10 @@ export default function App() {
     () => (streamingId ? messages.find((m) => m.id === streamingId) : undefined),
     [streamingId, messages],
   )
+  const liveMessage = streamingMessage || [...messages].reverse().find((m) => m.role === 'assistant' && (m.run || m.artifacts?.length))
+  const liveRun = liveMessage?.run
+  const liveArtifacts = liveMessage?.artifacts || []
+  const showLiveRail = Boolean(liveRun || liveArtifacts.length || busy)
 
   /** cheap signature that changes on every streamed token — drives auto-scroll */
   const streamSig = useMemo(
@@ -186,7 +191,16 @@ export default function App() {
     root.dataset.motion = settings.appearance.reduceMotion ? 'reduced' : 'full'
     root.style.setProperty('--fs-scale', String(settings.appearance.fontScale))
     const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute('content', settings.appearance.theme === 'midnight' ? '#080b10' : '#0B0F0D')
+    if (meta) {
+      const themeColor = {
+        dark: '#0B0F0D',
+        midnight: '#080B10',
+        graphite: '#101114',
+        forest: '#0B120F',
+        violet: '#100D18',
+      }[settings.appearance.theme]
+      meta.setAttribute('content', themeColor)
+    }
   }, [settings.appearance])
 
   /* ----------------------------------------------------- environment */
@@ -1033,7 +1047,7 @@ export default function App() {
         searchRef={searchRef}
       />
 
-      <main className="main">
+      <main className={cx('main', showLiveRail && 'has-live-rail')}>
         <header className={cx('topbar', scrolled && 'is-scrolled')}>
           {isMobile ? (
             <button className="icon-btn" onClick={() => setDrawer(true)} type="button" aria-label="Open sidebar">
@@ -1082,6 +1096,17 @@ export default function App() {
             <Icon name="plus" size={17} />
           </button>
         </header>
+
+        {showLiveRail ? (
+          <LiveActivityRail
+            run={liveRun}
+            artifacts={liveArtifacts}
+            stage={stage}
+            busy={busy}
+            onStop={busy ? stop : undefined}
+            onOpenFile={setPreview}
+          />
+        ) : null}
 
         {isEmpty ? (
           <div className="empty">

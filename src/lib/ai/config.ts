@@ -54,7 +54,7 @@ export interface ProviderConfig {
 export interface AppSettings {
   provider: ProviderConfig
   appearance: {
-    theme: 'dark' | 'midnight'
+    theme: 'dark' | 'midnight' | 'graphite' | 'forest' | 'violet'
     accent: string
     fontScale: number
     reduceMotion: boolean

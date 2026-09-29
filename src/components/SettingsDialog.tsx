@@ -33,6 +33,14 @@ const ACCENTS = [
   { value: '#a78bfa', name: 'Iris' },
 ]
 
+const THEMES = [
+  { value: 'dark' as const, name: 'Shadow', desc: 'Deep green contrast', colors: ['#0b0f0d', '#22c55e'] },
+  { value: 'midnight' as const, name: 'Midnight', desc: 'Cool blue-black', colors: ['#080b10', '#38bdf8'] },
+  { value: 'graphite' as const, name: 'Graphite', desc: 'Neutral studio', colors: ['#101114', '#d4d4d8'] },
+  { value: 'forest' as const, name: 'Forest', desc: 'Warm organic dark', colors: ['#0b120f', '#a3e635'] },
+  { value: 'violet' as const, name: 'Violet', desc: 'Creative night', colors: ['#100d18', '#a78bfa'] },
+]
+
 
 function Row({
   title,
@@ -148,6 +156,27 @@ export function SettingsDialog({
           {/* ---------------------------------------------------- appearance */}
           {tab === 'appearance' ? (
             <>
+              <div className="settings-group">
+                <h3 className="settings-group__title">Workspace theme</h3>
+                <p className="settings-group__desc">Choose the atmosphere for your agent workspace. Changes apply instantly.</p>
+                <div className="theme-grid">
+                  {THEMES.map((theme) => (
+                    <button
+                      key={theme.value}
+                      className={cx('theme-card', settings.appearance.theme === theme.value && 'is-active')}
+                      onClick={() => setAppearance({ theme: theme.value })}
+                      type="button"
+                    >
+                      <span className="theme-card__preview" style={{ background: theme.colors[0] }}>
+                        <i style={{ background: theme.colors[1] }} />
+                        <i style={{ background: theme.colors[1], opacity: 0.35 }} />
+                      </span>
+                      <span className="theme-card__copy"><b>{theme.name}</b><small>{theme.desc}</small></span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="settings-group">
                 <h3 className="settings-group__title">Accent</h3>
                 <p className="settings-group__desc">
