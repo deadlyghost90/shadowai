@@ -8,6 +8,7 @@ import { FilePreview } from './components/FileArtifacts'
 import { SettingsDialog, type SettingsTab } from './components/SettingsDialog'
 import { WorkspacePanel } from './components/WorkspacePanel'
 import { LiveActivityRail } from './components/LiveActivityRail'
+import { IntroPage } from './components/IntroPage'
 import { AuthGate } from './components/AuthGate'
 import { Onboarding } from './components/Onboarding'
 import type {
@@ -116,6 +117,7 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
   const [showArchived, setShowArchived] = useState(false)
+  const [introDismissed, setIntroDismissed] = useState(false)
 
   /* ---------------------------------------------------------- account */
   const [user, setUser] = useState<User | null>(null)
@@ -179,6 +181,13 @@ export default function App() {
     }),
     [conversations],
   )
+  const mediaLibraryFiles = useMemo(() => {
+    const map = new Map<string, ArtifactFile>()
+    conversations.flatMap((c) => c.messages).flatMap((m) => m.artifacts || []).forEach((file) => {
+      if (/\.(png|jpe?g|gif|webp|svg|mp4|webm|mov)$/i.test(file.path) || /^data:(image|video)\//.test(file.content)) map.set(file.path, file)
+    })
+    return [...map.values()]
+  }, [conversations])
 
   /* ------------------------------------------------------- persistence */
   useEffect(() => saveConversations(conversations), [conversations])
@@ -975,7 +984,7 @@ export default function App() {
     )
   }
 
-  if (!user) return <AuthGate />
+  if (!user) return introDismissed ? <AuthGate /> : <IntroPage onEnter={() => setIntroDismissed(true)} />
 
   if (!profileReady) {
     return (
@@ -1199,6 +1208,8 @@ export default function App() {
       <WorkspacePanel
         open={workspaceOpen}
         onClose={() => setWorkspaceOpen(false)}
+        mediaFiles={mediaLibraryFiles}
+        onOpenMedia={setPreview}
         onUse={(prompt) => {
           setMode('agent')
           setInput(prompt)
