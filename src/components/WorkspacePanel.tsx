@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Icon, type IconName } from './Icon'
 import { Modal } from './Overlay'
 import { cx } from '../lib/utils'
@@ -40,11 +40,21 @@ const TABS: { id: WorkspaceTab; label: string; icon: IconName }[] = [
 
 export function WorkspacePanel({ open, onClose, onUse, mediaFiles, onOpenMedia }: { open: boolean; onClose: () => void; onUse: (prompt: string) => void; mediaFiles?: ArtifactFile[]; onOpenMedia?: (file: ArtifactFile) => void }) {
   const [tab, setTab] = useState<WorkspaceTab>('plugins')
-  const [custom, setCustom] = useState<WorkspaceItem[]>([])
+  const [custom, setCustom] = useState<WorkspaceItem[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('shadowai-capability-drafts') || '[]') as WorkspaceItem[]
+    } catch {
+      return []
+    }
+  })
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [instruction, setInstruction] = useState('')
   const items = tab === 'portal' ? custom : ITEMS[tab]
+
+  useEffect(() => {
+    localStorage.setItem('shadowai-capability-drafts', JSON.stringify(custom))
+  }, [custom])
 
   const publish = () => {
     if (!name.trim() || !instruction.trim()) return
