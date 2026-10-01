@@ -48,6 +48,14 @@ import { cx, downloadText, titleFromMessage, uid } from './lib/utils'
 
 /* ------------------------------------------------------------------ data */
 
+function detectMediaIntent(text: string): MediaKind | null {
+  const value = text.toLowerCase()
+  const video = /\b(video|clip|animation|animate|motion)\b/.test(value) && /\b(generate|create|make|render|produce|show|need|want)\b/.test(value)
+  if (video) return 'video'
+  const image = /\b(image|picture|photo|illustration|poster|logo|artwork|thumbnail|banner)\b/.test(value) && /\b(generate|create|make|draw|render|produce|show|need|want)\b/.test(value)
+  return image ? 'image' : null
+}
+
 const SUGGESTIONS: { label: string; icon: IconName; prompt: string }[] = [
   {
     label: 'Create',
@@ -668,13 +676,31 @@ export default function App() {
       beginStream(convId, botMsg.id)
 
       try {
+        const mediaKind = !attachments.length ? detectMediaIntent(body) : null
+        if (mediaKind) {
+          const file = await generateMedia({
+            baseUrl: settings.provider.baseUrl,
+            token: settings.provider.apiKey,
+            kind: mediaKind,
+            prompt: body,
+            signal: abortRef.current?.signal,
+            onProgress: (event) => {
+              setStage(event.message)
+              setActivityEvents((current) => [...current.slice(-39), event])
+            },
+          })
+          stream.current.text = `Generated ${mediaKind} asset from your request.`
+          stream.current.artifacts = [file]
+          endStream(convId, botMsg.id)
+          return
+        }
         await execute(convId, botMsg.id, [...conv.messages, userMsg], runMode)
         endStream(convId, botMsg.id)
       } catch (e) {
         failStream(convId, botMsg.id, e)
       }
     },
-    [ready, conversations, activeId, model, toast, beginStream, execute, endStream, failStream],
+    [ready, conversations, activeId, model, settings.provider.apiKey, settings.provider.baseUrl, toast, beginStream, execute, endStream, failStream],
   )
 
   const stop = useCallback(() => {
