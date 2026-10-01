@@ -25,8 +25,8 @@ const ITEMS: Record<Exclude<WorkspaceTab, 'portal'>, WorkspaceItem[]> = {
     { name: 'Production checklist', description: 'Security, performance, testing, and release readiness.', icon: 'check', badge: 'Library', prompt: 'Use the production checklist library: review security, correctness, performance, accessibility, tests, and release notes before you finish.' },
   ],
   media: [
-    { name: 'Shadow Image Lab', description: 'Prompt-ready image generation workflow for concepts, UI visuals, and assets.', icon: 'image', badge: 'Qwen Image', prompt: 'Use the Shadow Image Lab workflow. Create a production-ready image brief, specify aspect ratio and style, then generate or prepare the image asset and show it in the media library.' },
-    { name: 'Shadow Motion Lab', description: 'Plan shots, camera movement, timing, and delivery for generated video.', icon: 'play', badge: 'Wan Video', prompt: 'Use the Shadow Motion Lab workflow. Turn my idea into a complete video brief with shots, action, camera, duration, aspect ratio, sound, and an execution-ready generation prompt.' },
+    { name: 'Shadow Image Lab', description: 'Prompt-ready image generation workflow for concepts, UI visuals, and assets.', icon: 'image', badge: 'ShadowAI generator', prompt: 'Use the Shadow Image Lab workflow. Create a production-ready image brief, specify aspect ratio and style, then generate or prepare the image asset and show it in the media library.' },
+    { name: 'Shadow Motion Lab', description: 'Plan shots, camera movement, timing, and delivery for generated video.', icon: 'play', badge: 'ShadowAI generator', prompt: 'Use the Shadow Motion Lab workflow. Turn my idea into a complete video brief with shots, action, camera, duration, aspect ratio, sound, and an execution-ready generation prompt.' },
     { name: 'Asset Director', description: 'Keep generated images, video clips, and project files organized.', icon: 'folder', badge: 'Media library', prompt: 'Act as my asset director. Organize the generated media for this project, name files consistently, add useful metadata, and prepare the final library view.' },
   ],
 }

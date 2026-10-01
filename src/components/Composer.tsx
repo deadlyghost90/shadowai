@@ -278,12 +278,12 @@ export function Composer(props: ComposerProps) {
         <div className="popover__head composer-menu__divider">Generate</div>
         <button className="menu-item" onClick={() => { onMediaAction('image'); modeAnchor.close() }} type="button">
           <Icon name="image" size={15} style={{ color: 'var(--accent)' }} />
-          <span className="menu-item__body"><span className="menu-item__title">Image</span><span className="menu-item__sub">Generate with the HF image model</span></span>
+          <span className="menu-item__body"><span className="menu-item__title">Image</span><span className="menu-item__sub">Create a visual asset with ShadowAI</span></span>
           <Icon name="chevronRight" size={13} className="menu-item__check" />
         </button>
         <button className="menu-item" onClick={() => { onMediaAction('video'); modeAnchor.close() }} type="button">
           <Icon name="play" size={15} style={{ color: 'var(--accent)' }} />
-          <span className="menu-item__body"><span className="menu-item__title">Video</span><span className="menu-item__sub">Generate with the HF video model</span></span>
+          <span className="menu-item__body"><span className="menu-item__title">Video</span><span className="menu-item__sub">Create a motion asset with ShadowAI</span></span>
           <Icon name="chevronRight" size={13} className="menu-item__check" />
         </button>
       </Popover>
