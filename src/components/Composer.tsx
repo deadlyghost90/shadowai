@@ -32,6 +32,7 @@ export interface ComposerProps {
   busy: boolean
   mode: Mode
   onModeChange: (m: Mode) => void
+  onMediaAction: (kind: 'image' | 'video') => void
   attachments: Attachment[]
   onFiles: (files: File[]) => void
   onRemoveAttachment: (id: string) => void
@@ -51,6 +52,7 @@ export function Composer(props: ComposerProps) {
     busy,
     mode,
     onModeChange,
+    onMediaAction,
     attachments,
     onFiles,
     onRemoveAttachment,
@@ -272,6 +274,17 @@ export function Composer(props: ComposerProps) {
             <span className="menu-item__sub">Multi-step tasks with visible progress</span>
           </span>
           {mode === 'agent' ? <Icon name="check" size={14} className="menu-item__check" /> : null}
+        </button>
+        <div className="popover__head composer-menu__divider">Generate</div>
+        <button className="menu-item" onClick={() => { onMediaAction('image'); modeAnchor.close() }} type="button">
+          <Icon name="image" size={15} style={{ color: 'var(--accent)' }} />
+          <span className="menu-item__body"><span className="menu-item__title">Image</span><span className="menu-item__sub">Generate with the HF image model</span></span>
+          <Icon name="chevronRight" size={13} className="menu-item__check" />
+        </button>
+        <button className="menu-item" onClick={() => { onMediaAction('video'); modeAnchor.close() }} type="button">
+          <Icon name="play" size={15} style={{ color: 'var(--accent)' }} />
+          <span className="menu-item__body"><span className="menu-item__title">Video</span><span className="menu-item__sub">Generate with the HF video model</span></span>
+          <Icon name="chevronRight" size={13} className="menu-item__check" />
         </button>
       </Popover>
 

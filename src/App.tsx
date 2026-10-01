@@ -1256,6 +1256,11 @@ export default function App() {
           busy={busy}
           mode={mode}
           onModeChange={setMode}
+          onMediaAction={(kind) => {
+            setMode('chat')
+            setInput(kind === 'image' ? 'Generate an image: ' : 'Generate a video: ')
+            requestAnimationFrame(() => inputRef.current?.focus())
+          }}
           attachments={pending}
           onFiles={(f) => void onFiles(f)}
           onRemoveAttachment={removeAttachment}
