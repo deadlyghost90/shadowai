@@ -1,5 +1,5 @@
 import { useMemo, useState, type Ref } from 'react'
-import type { Conversation } from '../lib/ai/types'
+import type { Conversation, Mode } from '../lib/ai/types'
 import { Icon } from './Icon'
 import { BrandLockup } from './Mark'
 import { Popover, useAnchored } from './Overlay'
@@ -34,7 +34,9 @@ export interface SidebarProps {
   onToggleArchived: () => void
   query: string
   onQuery: (q: string) => void
-  onOpenWorkspace: () => void
+  onOpenWorkspace: (tab?: string) => void
+  mode: Mode
+  onModeChange: (mode: Mode) => void
   onOpenSettings: (tab?: string) => void
   collapsed: boolean
   onToggleCollapsed: () => void
@@ -64,6 +66,8 @@ export function Sidebar(props: SidebarProps) {
     query,
     onQuery,
     onOpenWorkspace,
+    mode,
+    onModeChange,
     onOpenSettings,
     collapsed,
     onToggleCollapsed,
@@ -154,11 +158,27 @@ export function Sidebar(props: SidebarProps) {
             <Icon name="plus" size={16} />
             <span className="new-chat__label">New Chat</span>
           </button>
-          <button className="workspace-nav" onClick={onOpenWorkspace} type="button" title="Plugins, skills, and libraries">
+          <button className="workspace-nav" onClick={() => onOpenWorkspace()} type="button" title="Plugins, skills, and libraries">
             <Icon name="grid" size={15} />
             <span className="new-chat__label">Workspace</span>
             <span className="workspace-nav__hint">Plugins · Skills · Libraries</span>
           </button>
+
+          <div className="sidebar__nav-group" aria-label="ShadowAI workspaces">
+            <span className="sidebar__nav-label">WORKSPACES</span>
+            <button className={cx('sidebar__nav-item', mode === 'chat' && 'is-active')} onClick={() => onModeChange('chat')} type="button">
+              <Icon name="chat" size={15} /><span className="new-chat__label">Chat</span><small className="new-chat__label">Everyday conversations</small>
+            </button>
+            <button className={cx('sidebar__nav-item', mode === 'agent' && 'is-active')} onClick={() => onModeChange('agent')} type="button">
+              <Icon name="code" size={15} /><span className="new-chat__label">Coding Agent</span><small className="new-chat__label">Build, edit, verify</small>
+            </button>
+            <button className="sidebar__nav-item" onClick={() => onOpenWorkspace('media')} type="button">
+              <Icon name="image" size={15} /><span className="new-chat__label">Media Studio</span><small className="new-chat__label">Image and video</small>
+            </button>
+            <button className="sidebar__nav-item" onClick={() => onOpenWorkspace('libraries')} type="button">
+              <Icon name="folder" size={15} /><span className="new-chat__label">Projects</span><small className="new-chat__label">Files and assets</small>
+            </button>
+          </div>
 
           <div className="sidebar__search">
             <Icon name="search" size={14} className="search__icon" />

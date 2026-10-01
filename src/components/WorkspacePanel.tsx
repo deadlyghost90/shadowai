@@ -3,8 +3,9 @@ import { Icon, type IconName } from './Icon'
 import { Modal } from './Overlay'
 import { cx } from '../lib/utils'
 import type { ArtifactFile } from '../lib/ai/types'
+import type { MediaKind } from '../lib/ai/media'
 
-type WorkspaceTab = 'plugins' | 'skills' | 'libraries' | 'media' | 'portal'
+export type WorkspaceTab = 'plugins' | 'skills' | 'libraries' | 'media' | 'portal'
 type WorkspaceItem = { name: string; description: string; icon: IconName; prompt: string; badge: string }
 
 const ITEMS: Record<Exclude<WorkspaceTab, 'portal'>, WorkspaceItem[]> = {
@@ -38,7 +39,7 @@ const TABS: { id: WorkspaceTab; label: string; icon: IconName }[] = [
   { id: 'portal', label: 'Developer portal', icon: 'code' },
 ]
 
-export function WorkspacePanel({ open, onClose, onUse, mediaFiles, onOpenMedia }: { open: boolean; onClose: () => void; onUse: (prompt: string) => void; mediaFiles?: ArtifactFile[]; onOpenMedia?: (file: ArtifactFile) => void }) {
+export function WorkspacePanel({ open, onClose, onUse, mediaFiles, onOpenMedia, onGenerateMedia, initialTab = 'plugins' }: { open: boolean; onClose: () => void; onUse: (prompt: string) => void; mediaFiles?: ArtifactFile[]; onOpenMedia?: (file: ArtifactFile) => void; onGenerateMedia?: (kind: MediaKind, prompt: string) => Promise<ArtifactFile>; initialTab?: WorkspaceTab }) {
   const [tab, setTab] = useState<WorkspaceTab>('plugins')
   const [custom, setCustom] = useState<WorkspaceItem[]>(() => {
     try {
@@ -50,11 +51,19 @@ export function WorkspacePanel({ open, onClose, onUse, mediaFiles, onOpenMedia }
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [instruction, setInstruction] = useState('')
+  const [mediaPrompt, setMediaPrompt] = useState('')
+  const [mediaKind, setMediaKind] = useState<MediaKind>('image')
+  const [mediaBusy, setMediaBusy] = useState(false)
+  const [mediaError, setMediaError] = useState('')
   const items = tab === 'portal' ? custom : ITEMS[tab]
 
   useEffect(() => {
     localStorage.setItem('shadowai-capability-drafts', JSON.stringify(custom))
   }, [custom])
+
+  useEffect(() => {
+    if (open) setTab(initialTab)
+  }, [initialTab, open])
 
   const publish = () => {
     if (!name.trim() || !instruction.trim()) return
@@ -80,6 +89,7 @@ export function WorkspacePanel({ open, onClose, onUse, mediaFiles, onOpenMedia }
         </div>
       ) : (
         <div className="workspace-list">
+          {tab === 'media' ? <section className="media-studio-card"><div className="media-studio-card__head"><div><span className="workspace-head__mark"><Icon name={mediaKind === 'image' ? 'image' : 'play'} size={17} /></span><h3>Generate with ShadowAI</h3></div><span className="badge">HF Space</span></div><p>Use the image and video generators deployed in your Hugging Face Space. Results are saved into this project library.</p><div className="media-studio-card__modes"><button className={cx(mediaKind === 'image' && 'is-active')} onClick={() => setMediaKind('image')} type="button"><Icon name="image" size={14} /> Image</button><button className={cx(mediaKind === 'video' && 'is-active')} onClick={() => setMediaKind('video')} type="button"><Icon name="play" size={14} /> Video</button></div><textarea className="input media-studio-card__prompt" value={mediaPrompt} onChange={(e) => setMediaPrompt(e.target.value)} placeholder={mediaKind === 'image' ? 'Describe the image you want to create…' : 'Describe the video scene, motion, and camera…'} /><button className="solid-btn solid-btn--accent" disabled={!mediaPrompt.trim() || mediaBusy || !onGenerateMedia} onClick={async () => { if (!onGenerateMedia || !mediaPrompt.trim()) return; setMediaBusy(true); setMediaError(''); try { const file = await onGenerateMedia(mediaKind, mediaPrompt.trim()); setMediaPrompt(''); onOpenMedia?.(file) } catch (error) { setMediaError(error instanceof Error ? error.message : 'Media generation failed.') } finally { setMediaBusy(false) } }} type="button"><Icon name={mediaBusy ? 'refresh' : 'sparkle'} size={14} />{mediaBusy ? 'Generating…' : `Generate ${mediaKind}`}</button>{mediaError ? <p className="media-studio-card__error">{mediaError}</p> : null}</section> : null}
           {tab === 'libraries' && mediaFiles?.length ? <section className="media-library"><div className="media-library__head"><span><Icon name="image" size={14} /> Generated media</span><small>{mediaFiles.length} asset{mediaFiles.length === 1 ? '' : 's'}</small></div><div className="media-library__grid">{mediaFiles.map((file) => <button key={file.path} onClick={() => onOpenMedia?.(file)} type="button"><span className="media-library__thumb">{/\.(mp4|webm|mov)$/i.test(file.path) ? <Icon name="play" size={22} /> : /^data:image\//.test(file.content) ? <img src={file.content} alt="" /> : <Icon name="image" size={22} />}</span><b>{file.path}</b></button>)}</div></section> : null}
           {items.map((item) => <article className="workspace-card" key={item.name}><div className="workspace-card__icon"><Icon name={item.icon} size={17} /></div><div className="workspace-card__body"><div className="workspace-card__title"><strong>{item.name}</strong><span className="badge">{item.badge}</span></div><p>{item.description}</p><button className="solid-btn solid-btn--accent workspace-card__use" onClick={() => { onUse(item.prompt); onClose() }} type="button">Use workflow</button></div></article>)}
         </div>

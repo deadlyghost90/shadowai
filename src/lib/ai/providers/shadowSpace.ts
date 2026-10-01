@@ -162,6 +162,7 @@ export function createShadowSpaceProvider(cfg: ProviderConfig): AIProvider {
       const body: Record<string, unknown> = {
         message: flatten(req.messages),
         messages: req.messages,
+        model: req.model,
         temperature: cfg.temperature,
         max_tokens: cfg.maxTokens,
       }

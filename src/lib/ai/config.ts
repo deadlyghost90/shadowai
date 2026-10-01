@@ -21,8 +21,14 @@ export const SHADOW_SPACE_TOKEN = (import.meta.env?.VITE_SHADOW_SPACE_TOKEN as s
 
 export const SHADOW_MODEL = {
   id: 'shadow-v1.1',
-  label: 'Shadow Coding Agent',
+  label: 'Shadow Chat',
   source: 'ShadowMotion',
+}
+
+export const SHADOW_CODER_MODEL = {
+  id: 'shadow-coder',
+  label: 'Shadow Coding Agent',
+  source: 'Qwen Coder via ShadowMotion',
 }
 
 export interface ModelEntry {
@@ -91,7 +97,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     authHeader: 'Authorization',
     authFormat: 'Bearer {key}',
     headersJson: '{}',
-    models: [SHADOW_MODEL],
+    models: [SHADOW_MODEL, SHADOW_CODER_MODEL],
     selectedModel: SHADOW_MODEL.id,
     temperature: 0.7,
     maxTokens: 2048,

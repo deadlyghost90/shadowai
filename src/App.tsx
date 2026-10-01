@@ -6,7 +6,7 @@ import { Composer } from './components/Composer'
 import { MessageItem, type MessageActions } from './components/MessageItem'
 import { FilePreview } from './components/FileArtifacts'
 import { SettingsDialog, type SettingsTab } from './components/SettingsDialog'
-import { WorkspacePanel } from './components/WorkspacePanel'
+import { WorkspacePanel, type WorkspaceTab } from './components/WorkspacePanel'
 import { LiveActivityRail } from './components/LiveActivityRail'
 import { IntroPage } from './components/IntroPage'
 import { AuthGate } from './components/AuthGate'
@@ -20,12 +20,13 @@ import type {
   ProviderProgress,
 } from './lib/ai/types'
 import type { User } from 'firebase/auth'
-import type { AppSettings } from './lib/ai/config'
+import { SHADOW_CODER_MODEL, SHADOW_MODEL, type AppSettings } from './lib/ai/config'
 import { createProvider, isConfigured, transportLabel } from './lib/ai'
 import { buildProviderMessages } from './lib/ai/messages'
 import { runAgent } from './lib/ai/agent'
 import { describeError } from './lib/ai/providers/openaiCompatible'
 import { parseArtifacts } from './lib/ai/artifacts'
+import { generateMedia, type MediaKind } from './lib/ai/media'
 import { readAttachment } from './lib/attachments'
 import {
   exportConversations,
@@ -102,7 +103,7 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations())
   const [activeId, setActiveId] = useState<string>('')
-  const [mode, setMode] = useState<Mode>('agent')
+  const [mode, setMode] = useState<Mode>('chat')
   const [input, setInput] = useState('')
   const [pending, setPending] = useState<Attachment[]>([])
   const [busy, setBusy] = useState(false)
@@ -114,6 +115,7 @@ export default function App() {
   const [preview, setPreview] = useState<ArtifactFile | null>(null)
   const [toasts, setToasts] = useState<{ id: string; text: string; kind: 'ok' | 'err' }[]>([])
   const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('plugins')
   const [isMobile, setIsMobile] = useState(() => isMobileWidth())
   const [scrolled, setScrolled] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
@@ -150,7 +152,7 @@ export default function App() {
     [settings.provider.models],
   )
   const ready = isConfigured(settings.provider)
-  const model = settings.provider.selectedModel || models[0]?.id || ''
+  const model = mode === 'agent' ? SHADOW_CODER_MODEL.id : SHADOW_MODEL.id
   const activeModelLabel = models.find((m) => m.id === model)?.label || model
   const conversation = useMemo(
     () => conversations.find((c) => c.id === activeId) ?? null,
@@ -337,6 +339,29 @@ export default function App() {
     [],
   )
 
+  const createMedia = useCallback(async (kind: MediaKind, prompt: string): Promise<ArtifactFile> => {
+    const file = await generateMedia({
+      baseUrl: settings.provider.baseUrl,
+      token: settings.provider.apiKey,
+      kind,
+      prompt,
+      onProgress: (event) => {
+        setStage(event.message)
+        setActivityEvents((current) => [...current.slice(-39), event])
+      },
+    })
+    if (activeId) {
+      updateConversation(activeId, (conversation) => ({
+        ...conversation,
+        updatedAt: Date.now(),
+        messages: [...conversation.messages, {
+          id: uid('msg'), role: 'assistant', content: `Generated ${kind} asset from the Media Studio.`, createdAt: Date.now(), model, mode: 'chat', artifacts: [file],
+        }],
+      }))
+    }
+    return file
+  }, [activeId, model, settings.provider.apiKey, settings.provider.baseUrl, updateConversation])
+
   const patchMessage = useCallback(
     (convId: string, msgId: string, patch: Partial<Message> | ((m: Message) => Partial<Message>)) => {
       updateConversation(convId, (c) => ({
@@ -358,7 +383,7 @@ export default function App() {
     setBusy(false)
     setInput('')
     setPending([])
-    setMode('agent')
+    setMode('chat')
     setSearch('')
     setPreview(null)
     const fresh = emptyConversation()
@@ -1051,7 +1076,15 @@ export default function App() {
         onToggleArchived={() => setShowArchived((v) => !v)}
         query={search}
         onQuery={setSearch}
-        onOpenWorkspace={() => setWorkspaceOpen(true)}
+        onOpenWorkspace={(tab) => {
+          setWorkspaceTab((tab as WorkspaceTab) || 'plugins')
+          setWorkspaceOpen(true)
+        }}
+        mode={mode}
+        onModeChange={(nextMode) => {
+          setMode(nextMode)
+          if (isMobile) setDrawer(false)
+        }}
         onOpenSettings={openSettings}
         collapsed={collapsed}
         onToggleCollapsed={() => setCollapsed((v) => !v)}
@@ -1219,8 +1252,10 @@ export default function App() {
       <WorkspacePanel
         open={workspaceOpen}
         onClose={() => setWorkspaceOpen(false)}
+        initialTab={workspaceTab}
         mediaFiles={mediaLibraryFiles}
         onOpenMedia={setPreview}
+        onGenerateMedia={createMedia}
         onUse={(prompt) => {
           setMode('agent')
           setInput(prompt)
