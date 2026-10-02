@@ -32,6 +32,8 @@ export function loadSettings(): AppSettings {
     }
     if (!provider.baseUrl) provider.baseUrl = SHADOW_SPACE_URL
     if (!provider.apiKey && SHADOW_SPACE_TOKEN) provider.apiKey = SHADOW_SPACE_TOKEN
+    provider.models = structuredCloneish(DEFAULT_SETTINGS.provider.models)
+    provider.selectedModel = DEFAULT_SETTINGS.provider.selectedModel
     const legacyGreenDefault = parsed.appearance?.theme === 'dark' && parsed.appearance?.accent === '#22C55E'
     return {
       ...structuredCloneish(DEFAULT_SETTINGS),

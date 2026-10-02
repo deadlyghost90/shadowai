@@ -1229,7 +1229,7 @@ export default function App() {
                     message={m}
                     streaming={busy && m.id === streamingId}
                     isMobile={isMobile}
-                    modelLabel={models.find((x) => x.id === m.model)?.label || ''}
+                    modelLabel={models.find((x) => x.id === m.model)?.label || 'ShadowAI'}
                     showTimestamps={settings.appearance.showTimestamps}
                     onOpenFile={(f) => setPreview(f)}
                     actions={messageActions}

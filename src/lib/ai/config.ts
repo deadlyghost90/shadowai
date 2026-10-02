@@ -28,7 +28,7 @@ export const SHADOW_MODEL = {
 export const SHADOW_CODER_MODEL = {
   id: 'shadow-coder',
   label: 'Shadow Coding Agent',
-  source: 'Qwen Coder via ShadowMotion',
+  source: 'ShadowMotion',
 }
 
 export interface ModelEntry {
