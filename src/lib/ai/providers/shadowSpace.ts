@@ -163,8 +163,8 @@ export function createShadowSpaceProvider(cfg: ProviderConfig): AIProvider {
         message: flatten(req.messages),
         messages: req.messages,
         model: req.model,
-        temperature: cfg.temperature,
-        max_tokens: cfg.maxTokens,
+        temperature: req.temperature ?? cfg.temperature,
+        max_tokens: req.maxTokens ?? cfg.maxTokens,
       }
       const sys = systemOf(req.messages)
       if (sys) body.system_prompt = sys

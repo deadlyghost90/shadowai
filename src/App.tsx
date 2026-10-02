@@ -56,6 +56,14 @@ function detectMediaIntent(text: string): MediaKind | null {
   return image ? 'image' : null
 }
 
+function detectCodingIntent(text: string): boolean {
+  return /\b(write|build|create|make|fix|debug|implement|refactor|code|coding|function|component|api|script|website|app|bug|error|repository|repo|file)\b/i.test(text)
+}
+
+function isShortChat(text: string): boolean {
+  return text.trim().length <= 240 && !detectCodingIntent(text) && !detectMediaIntent(text)
+}
+
 const SUGGESTIONS: { label: string; icon: IconName; prompt: string }[] = [
   {
     label: 'Create',
@@ -610,6 +618,8 @@ export default function App() {
       await provider.chat({
         model,
         messages: buildProviderMessages({ history, systemPrompt, mode: 'chat' }),
+        maxTokens: isShortChat([...history].reverse().find((m) => m.role === 'user')?.content || '') ? 128 : undefined,
+        temperature: isShortChat([...history].reverse().find((m) => m.role === 'user')?.content || '') ? 0.25 : undefined,
         signal,
         onDelta: pushDelta,
         onProgress: (p) => {
@@ -639,6 +649,7 @@ export default function App() {
       }
       const convId = conv.id
       const isFirst = conv.messages.length === 0
+      const effectiveMode: Mode = runMode === 'chat' && detectCodingIntent(body) ? 'agent' : runMode
 
       const userMsg: Message = {
         id: uid('m'),
@@ -653,7 +664,7 @@ export default function App() {
         content: '',
         createdAt: Date.now(),
         model,
-        mode: runMode,
+        mode: effectiveMode,
       }
 
       setConversations((prev) =>
@@ -694,7 +705,14 @@ export default function App() {
           endStream(convId, botMsg.id)
           return
         }
-        await execute(convId, botMsg.id, [...conv.messages, userMsg], runMode)
+        const deadline = effectiveMode === 'chat' && isShortChat(body)
+          ? window.setTimeout(() => abortRef.current?.abort(), 10000)
+          : undefined
+        try {
+          await execute(convId, botMsg.id, [...conv.messages, userMsg], effectiveMode)
+        } finally {
+          if (deadline) window.clearTimeout(deadline)
+        }
         endStream(convId, botMsg.id)
       } catch (e) {
         failStream(convId, botMsg.id, e)
