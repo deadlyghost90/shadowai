@@ -35,16 +35,6 @@ export function isConfigured(cfg: ProviderConfig): boolean {
 export function transportLabel(cfg: ProviderConfig): string {
   if (!isConfigured(cfg)) return 'Not connected'
   if (cfg.transport === 'server') return 'ShadowAI backend'
-  if (cfg.transport === 'space') {
-    try {
-      return new URL(cfg.baseUrl).hostname.replace(/\.hf\.space$/, '')
-    } catch {
-      return 'ShadowAI Space'
-    }
-  }
-  try {
-    return new URL(cfg.baseUrl).host
-  } catch {
-    return 'Custom endpoint'
-  }
+  if (cfg.transport === 'space') return 'Shadow Space'
+  return 'ShadowAI'
 }

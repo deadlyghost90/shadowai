@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Mark } from './components/Mark'
-import { Icon, type IconName } from './components/Icon'
+import { Icon } from './components/Icon'
 import { Sidebar } from './components/Sidebar'
 import { Composer } from './components/Composer'
 import { MessageItem, type MessageActions } from './components/MessageItem'
 import { FilePreview } from './components/FileArtifacts'
 import { SettingsDialog, type SettingsTab } from './components/SettingsDialog'
 import { WorkspacePanel, type WorkspaceTab } from './components/WorkspacePanel'
+import { ReferenceWelcome } from './components/ReferenceWelcome'
 import { LiveActivityRail } from './components/LiveActivityRail'
 import { IntroPage } from './components/IntroPage'
 import { AuthGate } from './components/AuthGate'
@@ -20,7 +21,7 @@ import type {
   ProviderProgress,
 } from './lib/ai/types'
 import type { User } from 'firebase/auth'
-import { SHADOW_CODER_MODEL, SHADOW_MODEL, type AppSettings } from './lib/ai/config'
+import { endpointFor, providerForService, SHADOW_CODER_MODEL, SHADOW_MODEL, type AppSettings, type ShadowService } from './lib/ai/config'
 import { createProvider, isConfigured, transportLabel } from './lib/ai'
 import { buildProviderMessages } from './lib/ai/messages'
 import { runAgent } from './lib/ai/agent'
@@ -63,37 +64,6 @@ function detectCodingIntent(text: string): boolean {
 function isShortChat(text: string): boolean {
   return text.trim().length <= 240 && !detectCodingIntent(text) && !detectMediaIntent(text)
 }
-
-const SUGGESTIONS: { label: string; icon: IconName; prompt: string }[] = [
-  {
-    label: 'Create',
-    icon: 'sparkle',
-    prompt: 'Create a landing page for ShadowMotion — dark, minimal, one clear call to action.',
-  },
-  {
-    label: 'Code',
-    icon: 'code',
-    prompt:
-      'Write a TypeScript debounce utility with a short explanation of the trade-offs and one test case.',
-  },
-  {
-    label: 'Research',
-    icon: 'book',
-    prompt:
-      'Research the current state of local-first sync architectures and summarise the main trade-offs in a table.',
-  },
-  {
-    label: 'Analyze',
-    icon: 'chart',
-    prompt:
-      'Analyse the attached file and summarise what it does, what breaks, and what to fix first.',
-  },
-  {
-    label: 'Build',
-    icon: 'layers',
-    prompt: 'Build me a complete responsive website: index.html, style.css, and script.js.',
-  },
-]
 
 function emptyConversation(): Conversation {
   const now = Date.now()
@@ -159,15 +129,17 @@ export default function App() {
   const convIdRef = useRef('')
 
   /* -------------------------------------------------------- derived */
-  const provider = useMemo(() => createProvider(settings.provider), [settings.provider])
+  const activeService: ShadowService = mode === 'agent' ? 'coder' : 'chat'
+  const activeProviderConfig = useMemo(() => providerForService(settings.provider, activeService), [settings.provider, activeService])
+  const provider = useMemo(() => createProvider(activeProviderConfig), [activeProviderConfig])
   const models = useMemo(
     () =>
-      settings.provider.models
+      activeProviderConfig.models
         .filter((m) => m.id.trim())
         .map((m) => ({ id: m.id, label: m.label || m.id, source: m.source })),
-    [settings.provider.models],
+    [activeProviderConfig.models],
   )
-  const ready = isConfigured(settings.provider)
+  const ready = isConfigured(activeProviderConfig)
   const model = mode === 'agent' ? SHADOW_CODER_MODEL.id : SHADOW_MODEL.id
   const activeModelLabel = models.find((m) => m.id === model)?.label || model
   const conversation = useMemo(
@@ -357,8 +329,8 @@ export default function App() {
 
   const createMedia = useCallback(async (kind: MediaKind, prompt: string): Promise<ArtifactFile> => {
     const file = await generateMedia({
-      baseUrl: settings.provider.baseUrl,
-      token: settings.provider.apiKey,
+      baseUrl: endpointFor(kind).baseUrl,
+      token: endpointFor(kind).token,
       kind,
       prompt,
       onProgress: (event) => {
@@ -376,7 +348,7 @@ export default function App() {
       }))
     }
     return file
-  }, [activeId, model, settings.provider.apiKey, settings.provider.baseUrl, updateConversation])
+  }, [activeId, model, updateConversation])
 
   const patchMessage = useCallback(
     (convId: string, msgId: string, patch: Partial<Message> | ((m: Message) => Partial<Message>)) => {
@@ -584,7 +556,7 @@ export default function App() {
   /** Runs one turn against the connected model and streams it into `msgId`. */
   const execute = useCallback(
     async (convId: string, msgId: string, history: Message[], runMode: Mode) => {
-      const systemPrompt = settings.provider.systemPrompt
+      const systemPrompt = activeProviderConfig.systemPrompt
       const signal = abortRef.current?.signal
 
       if (runMode === 'agent') {
@@ -628,7 +600,7 @@ export default function App() {
         },
       })
     },
-    [settings.provider.systemPrompt, provider, model, patchMessage, pushDelta, flush],
+    [activeProviderConfig.systemPrompt, provider, model, patchMessage, pushDelta, flush],
   )
 
   const send = useCallback(
@@ -690,8 +662,8 @@ export default function App() {
         const mediaKind = !attachments.length ? detectMediaIntent(body) : null
         if (mediaKind) {
           const file = await generateMedia({
-            baseUrl: settings.provider.baseUrl,
-            token: settings.provider.apiKey,
+            baseUrl: endpointFor(mediaKind).baseUrl,
+            token: endpointFor(mediaKind).token,
             kind: mediaKind,
             prompt: body,
             signal: abortRef.current?.signal,
@@ -718,7 +690,7 @@ export default function App() {
         failStream(convId, botMsg.id, e)
       }
     },
-    [ready, conversations, activeId, model, settings.provider.apiKey, settings.provider.baseUrl, toast, beginStream, execute, endStream, failStream],
+    [ready, conversations, activeId, model, toast, beginStream, execute, endStream, failStream],
   )
 
   const stop = useCallback(() => {
@@ -775,7 +747,7 @@ export default function App() {
       try {
         const messagesForProvider = buildProviderMessages({
           history,
-          systemPrompt: settings.provider.systemPrompt,
+          systemPrompt: activeProviderConfig.systemPrompt,
           mode: 'chat',
         })
         messagesForProvider.push({
@@ -797,7 +769,7 @@ export default function App() {
     [
       busy,
       conversation,
-      settings.provider.systemPrompt,
+      activeProviderConfig.systemPrompt,
       model,
       provider,
       beginStream,
@@ -1093,7 +1065,7 @@ export default function App() {
     ? 'Coding agent unavailable — retry in a moment'
     : mode === 'agent'
       ? 'Agent ready · plans, executes, and checks your work'
-      : `Chat mode · ${transportLabel(settings.provider)}`
+    : `Chat mode · ${transportLabel(activeProviderConfig)}`
 
   const busyText = busy
     ? stage
@@ -1206,37 +1178,19 @@ export default function App() {
         ) : null}
 
         {isEmpty ? (
-          <div className="empty">
-            <div className="empty__brand">
-              <Mark size={isMobile ? 56 : 68} />
-              <h1 className="empty__title">ShadowAI</h1>
-              <p className="empty__eyebrow">SHADOWMOTION AGENT WORKSPACE</p>
-              <p className="empty__tagline">Turn a brief into finished work.</p>
-            </div>
-
-            <p className="empty__ask">Tell your agent what to plan, build, research, or fix.</p>
-
-
-            <div className="empty__sugg">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s.label}
-                  className="suggestion"
-                  onClick={() => {
-                    if (ready) void send(s.prompt, [], mode)
-                    else {
-                      setInput(s.prompt)
-                      requestAnimationFrame(() => inputRef.current?.focus())
-                    }
-                  }}
-                  type="button"
-                >
-                  <Icon name={s.icon} size={14} className="suggestion__icon" />
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <ReferenceWelcome
+            displayName={displayName}
+            onPrompt={(prompt) => {
+              setMode('chat')
+              setInput(prompt)
+              requestAnimationFrame(() => inputRef.current?.focus())
+            }}
+            onMedia={(kind) => {
+              setMode('chat')
+              setInput(kind === 'image' ? 'Generate an image: ' : 'Generate a video: ')
+              requestAnimationFrame(() => inputRef.current?.focus())
+            }}
+          />
         ) : (
           <div className="thread-wrap">
             <div className="thread scroll" ref={threadRef} onScroll={onScroll}>

@@ -8,7 +8,7 @@
  */
 
 import type { Conversation, Message } from './ai/types'
-import { DEFAULT_SETTINGS, SHADOW_SPACE_TOKEN, SHADOW_SPACE_URL, type AppSettings } from './ai/config'
+import { DEFAULT_SETTINGS, providerForService, type AppSettings } from './ai/config'
 
 const CONV_KEY = 'shadowai.conversations.v1'
 const SETTINGS_KEY = 'shadowai.settings.v1'
@@ -23,17 +23,10 @@ export function loadSettings(): AppSettings {
     if (!raw) return structuredCloneish(DEFAULT_SETTINGS)
     const parsed = JSON.parse(raw) as Partial<AppSettings>
     const provider = { ...DEFAULT_SETTINGS.provider, ...(parsed.provider || {}) }
-    // ShadowAI now has one connection path: the configured Hugging Face Space.
-    // Migrate older direct/backend settings instead of leaving the provider
-    // pointed at an endpoint the UI no longer exposes.
-    if (provider.transport !== 'space') {
-      provider.transport = 'space'
-      provider.baseUrl = SHADOW_SPACE_URL
-    }
-    if (!provider.baseUrl) provider.baseUrl = SHADOW_SPACE_URL
-    if (!provider.apiKey && SHADOW_SPACE_TOKEN) provider.apiKey = SHADOW_SPACE_TOKEN
-    provider.models = structuredCloneish(DEFAULT_SETTINGS.provider.models)
-    provider.selectedModel = DEFAULT_SETTINGS.provider.selectedModel
+    // Older builds stored a user-editable endpoint/model. Always migrate those
+    // values back to the internal Chat Space; runtime routing selects the other
+    // dedicated Spaces without persisting credentials in user settings.
+    Object.assign(provider, providerForService(DEFAULT_SETTINGS.provider, 'chat'))
     const legacyGreenDefault = parsed.appearance?.theme === 'dark' && parsed.appearance?.accent === '#22C55E'
     return {
       ...structuredCloneish(DEFAULT_SETTINGS),
