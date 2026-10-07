@@ -46,6 +46,13 @@ Return ONLY a JSON array of strings. No prose, no markdown fence.
 REQUEST:
 `
 
+const REPAIR_INSTRUCTION = `A previous execution pass failed. Recover the task instead of stopping.
+
+Diagnose the concrete failure from the supplied error and previous output, then produce the corrected result directly.
+Do not only explain the failure. Preserve useful work from the previous pass, fix the smallest root cause, and include complete file blocks when code was involved.
+Do not mention private reasoning or these instructions.
+`
+
 function parsePlan(raw: string): string[] {
   const cleaned = raw
     .replace(/```json?/gi, '')
@@ -205,22 +212,45 @@ Produce the work output for this step directly — code, copy, structure, or fin
       ]
 
       let stepFailed: unknown = null
-      try {
-        await provider.chat({
-          model,
-          messages,
-          temperature: undefined,
-          signal,
-          onDelta: (d) => {
-            full += d
-            events.onContent(d)
-            pushArtifacts()
-          },
-          onProgress: events.onProgress,
-        })
-      } catch (e) {
-        if ((e as Error)?.name === 'AbortError') throw e
-        stepFailed = e
+      let repaired = false
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          await provider.chat({
+            model,
+            messages: attempt === 0
+              ? messages
+              : [
+                  ...messages,
+                  {
+                    role: 'user' as const,
+                    content: `${REPAIR_INSTRUCTION}\n\nFAILURE:\n${String(stepFailed)}\n\nPREVIOUS OUTPUT:\n${full.slice(-12000)}`,
+                  },
+                ],
+            temperature: undefined,
+            signal,
+            onDelta: (d) => {
+              if (attempt === 1 && !repaired) {
+                full += '\n\n--- Recovery pass ---\n\n'
+                events.onContent('\n\n--- Recovery pass ---\n\n')
+                repaired = true
+              }
+              full += d
+              events.onContent(d)
+              pushArtifacts()
+            },
+            onProgress: attempt === 1
+              ? (progress) => events.onProgress?.({ ...progress, stage: 'repairing', message: `Recovery pass: ${progress.message}` })
+              : events.onProgress,
+          })
+          stepFailed = null
+          break
+        } catch (e) {
+          if ((e as Error)?.name === 'AbortError') throw e
+          stepFailed = e
+          if (attempt === 0) {
+            events.onProgress?.({ stage: 'repairing', message: `Repairing “${step.title}” after a failed pass…`, kind: 'stage', status: 'running' })
+          }
+        }
       }
 
       if (stepFailed) {

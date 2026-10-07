@@ -17,6 +17,7 @@ const ITEMS: Record<Exclude<WorkspaceTab, 'portal'>, WorkspaceItem[]> = {
   skills: [
     { name: 'Debug in place', description: 'Reproduce the issue, patch the cause, and verify it.', icon: 'terminal', badge: 'Agent skill', prompt: 'Use the debug-in-place skill: reproduce the problem, trace the root cause, make the smallest robust fix, and verify it with a focused test.' },
     { name: 'Ship a feature', description: 'Break a feature into steps and deliver the implementation.', icon: 'rocket', badge: 'Agent skill', prompt: 'Use the ship-a-feature skill: clarify the acceptance criteria from the request, implement the feature end to end, and validate the finished behavior.' },
+    { name: 'Self-healing delivery', description: 'Automatically recover once from a failed step before stopping.', icon: 'refresh', badge: 'ShadowAI native', prompt: 'Use ShadowAI’s self-healing delivery loop. Define the desired outcome, execute the task, inspect any failed step, apply one focused repair pass, and finish only after the output is verified or the failure is clearly reported.' },
     { name: 'Research then build', description: 'Gather relevant facts before making implementation decisions.', icon: 'compass', badge: 'Agent skill', prompt: 'Use the research-then-build skill: identify the key constraints, choose a practical approach, then implement the result rather than only describing it.' },
   ],
   libraries: [
