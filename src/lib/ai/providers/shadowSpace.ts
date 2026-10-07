@@ -110,6 +110,45 @@ function classify(status: number, body?: string): ProviderError {
   return new ProviderError('ShadowAI could not connect to the model.', 'connection', detail)
 }
 
+async function chatViaGradio(
+  base: string,
+  req: ProviderRequest,
+): Promise<string> {
+  const lastUser = [...req.messages].reverse().find((m) => m.role === 'user')
+  const prompt = lastUser
+    ? typeof lastUser.content === 'string'
+      ? lastUser.content
+      : lastUser.content.map((p) => (p.type === 'text' ? p.text : '')).join('\n')
+    : ''
+  const history = req.messages
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .map((m) => ({ role: m.role, content: typeof m.content === 'string' ? m.content : m.content.map((p) => (p.type === 'text' ? p.text : '')).join('\n') }))
+  const start = await fetch(`${base}/gradio_api/call/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: [prompt, history] }),
+    signal: req.signal,
+  })
+  if (!start.ok) throw classify(start.status, await start.text())
+  const started = (await start.json()) as { event_id?: string }
+  if (!started.event_id) throw new ProviderError('The coding service did not return a job id.', 'connection')
+  const result = await fetch(`${base}/gradio_api/call/chat/${started.event_id}`, { signal: req.signal })
+  if (!result.ok) throw classify(result.status, await result.text())
+  const text = await result.text()
+  let response = ''
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data:')) continue
+    try {
+      const data = JSON.parse(line.slice(5).trim()) as unknown
+      if (Array.isArray(data) && typeof data[0] === 'string') response = data[0]
+    } catch {
+      /* keep scanning the event stream */
+    }
+  }
+  if (!response) throw new ProviderError('The coding service returned an empty response.', 'model')
+  return response
+}
+
 export function createShadowSpaceProvider(cfg: ProviderConfig): AIProvider {
   const base = cfg.baseUrl.replace(/\/+$/, '')
   const auth = (): Record<string, string> => {
@@ -134,10 +173,13 @@ export function createShadowSpaceProvider(cfg: ProviderConfig): AIProvider {
     async health({ model, signal }): Promise<ProviderHealth> {
       if (!base) return { ok: false, message: 'Internal coding agent endpoint unavailable.', kind: 'connection' }
       try {
-        const res = await fetch(`${base}/health`, { headers: auth(), signal })
+        const res = await fetch(cfg.selectedModel === 'shadow-coder' ? `${base}/` : `${base}/health`, { headers: auth(), signal })
         if (!res.ok) {
           const err = classify(res.status)
           return { ok: false, message: err.message, kind: err.kind }
+        }
+        if (cfg.selectedModel === 'shadow-coder') {
+          return { ok: true, message: `${model || 'Shadow Coding Agent'} · ready` }
         }
         const data = (await res.json()) as { model_loaded?: boolean; loading?: boolean; progress?: string; error?: string }
         if (data.error) return { ok: false, message: data.error, kind: 'model' }
@@ -156,6 +198,21 @@ export function createShadowSpaceProvider(cfg: ProviderConfig): AIProvider {
       if (!base) {
         throw new ProviderError('Internal coding agent endpoint unavailable.', 'connection',
           'The internal coding agent endpoint is unavailable.')
+      }
+
+      // The free ZeroGPU Coder Space is Gradio-only; use its public API while
+      // Chat, Image, and Video continue using the NDJSON FastAPI contract.
+      if (cfg.selectedModel === 'shadow-coder') {
+        try {
+          const text = await chatViaGradio(base, req)
+          req.onDelta(text)
+          req.onDone?.(text)
+          return
+        } catch (e) {
+          if ((e as Error)?.name === 'AbortError') throw e
+          if (e instanceof ProviderError) throw e
+          throw new ProviderError('ShadowAI could not reach the coding service.', 'network')
+        }
       }
 
       const lastUser = [...req.messages].reverse().find((m) => m.role === 'user')
